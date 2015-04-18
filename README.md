@@ -1,6 +1,6 @@
 # NAME
 
-file-lock - File locking via POSIX advisory record locks
+file_lock - File locking via POSIX advisory record locks
 
 # DESCRIPTION
 
