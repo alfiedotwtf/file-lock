@@ -1,5 +1,5 @@
 [package]
-name = "file_lock"
+name = "file-lock"
 version = "0.0.2"
 authors = ["Alfie John <alfie@alfie.wtf>"]
 
