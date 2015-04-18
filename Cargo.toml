@@ -2,3 +2,7 @@
 name = "file-lock"
 version = "0.0.1"
 authors = ["Alfie John <alfie@alfie.wtf>"]
+
+description = "File locking via POSIX advisory record locks"
+repository = "https://github.com/alfiedotwtf/file-lock"
+license = "GPL-3.0"
