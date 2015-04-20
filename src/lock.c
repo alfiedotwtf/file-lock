@@ -38,7 +38,7 @@ struct result lock_type(const char* pathname) {  \
 }
 
 _LOCK(c_lock,      F_SETLK);
-_LOCK(C_lock_wait, F_SETLKW);
+_LOCK(c_lock_wait, F_SETLKW);
 
 struct result c_unlock(int fd) {
   struct result my_result;

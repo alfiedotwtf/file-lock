@@ -1,6 +1,6 @@
 [package]
 name = "file-lock"
-version = "0.0.3"
+version = "0.0.4"
 authors = ["Alfie John <alfie@alfie.wtf>"]
 
 description = "File locking via POSIX advisory record locks"
