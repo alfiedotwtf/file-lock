@@ -35,9 +35,8 @@ macro_rules! _create_lock_type {
         let my_result = $c_lock_type(raw_filename.unwrap().as_ptr());
 
         return match my_result._fd {
-           0 => Ok(Lock{_fd: my_result._fd}),
           -1 => Err(Error::Errno(my_result._errno)),
-           _ => unreachable!(),
+           _ => Ok(Lock{_fd: my_result._fd}),
         }
       }
     }
@@ -56,9 +55,8 @@ pub fn unlock(lock: &Lock) -> Result<bool, Error> {
     let my_result = c_unlock(lock._fd);
 
     return match my_result._fd {
-       0 => Ok(true),
       -1 => Err(Error::Errno(my_result._errno)),
-       _ => unreachable!(),
+       _ => Ok(true),
     }
   }
 }
