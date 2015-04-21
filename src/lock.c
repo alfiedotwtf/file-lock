@@ -26,7 +26,7 @@ struct result lock_type(const char* pathname) {  \
   fl.l_start  = 0;                               \
   fl.l_len    = 0;                               \
                                                  \
-  if (fcntl(fd, cmd, &fl) == -2) {               \
+  if (fcntl(fd, cmd, &fl) == -1) {               \
     my_result.fd    = -1;                        \
     my_result.error = errno;                     \
     return my_result;                            \
