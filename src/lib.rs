@@ -67,3 +67,96 @@ impl Drop for Lock {
     unlock(self);
   }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use super::Error::*;
+
+    //
+    // unfortunately we can't abstract this out for lock() and lock_wait()
+    // into a macro because string concat doesn't exist
+    //
+
+    // lock_wait() tests
+
+    #[test]
+    fn lock_invalid_filename() {
+        assert_eq!(_lock("null\0inside"), "invalid");
+    }
+
+    #[test]
+    fn lock_errno() {
+        assert_eq!(_lock(""), "errno");
+    }
+
+    #[test]
+    fn lock_ok() {
+        assert_eq!(_lock("/tmp/file-lock-test"), "ok");
+    }
+
+    fn _lock(filename: &str) -> &str {
+        let l = lock(filename);
+
+        match l {
+            Ok(_)  => "ok",
+            Err(e) => match e {
+                InvalidFilename => "invalid",
+                Errno(_)        => "errno",
+            }
+        }
+    }
+
+    // lock_wait() tests
+
+    #[test]
+    fn lock_wait_invalid_filename() {
+        assert_eq!(_lock_wait("null\0inside"), "invalid");
+    }
+
+    #[test]
+    fn lock_wait_errno() {
+        assert_eq!(_lock_wait(""), "errno");
+    }
+
+    #[test]
+    fn lock_wait_ok() {
+        assert_eq!(_lock_wait("/tmp/file-lock-test"), "ok");
+    }
+
+    fn _lock_wait(filename: &str) -> &str {
+        let l = lock_wait(filename);
+
+        match l {
+            Ok(_)  => "ok",
+            Err(e) => match e {
+                InvalidFilename => "invalid",
+                Errno(_)        => "errno",
+            }
+        }
+    }
+
+    // unlock()
+
+    //
+    // fcntl() will only allow us to hold a single lock on a file at a time
+    // so this test can't work :(
+    //
+    // #[test]
+    // fn unlock_error() {
+    //     let l1 = lock("/tmp/file-lock-test");
+    //     let l2 = lock("/tmp/file-lock-test");
+    //
+    //     assert!(l1.is_ok());
+    //     assert!(l2.is_err());
+    // }
+    //
+
+    #[test]
+    fn unlock_ok() {
+        let l        = lock_wait("/tmp/file-lock-test");
+        let unlocked = l.ok().unwrap();
+
+        assert!(unlock(&unlocked).is_ok(), true);
+    }
+}
