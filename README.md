@@ -25,7 +25,6 @@ Feel free to fork the repository and submit pull requests :)
 # DEPENDENCIES
 
 * [gcc](https://gcc.gnu.org/)
-* [ar](https://www.gnu.org/software/binutils/)
 
 # SEE ALSO
 
@@ -33,7 +32,7 @@ Feel free to fork the repository and submit pull requests :)
 
 # AUTHOR
 
-[Alfie John](https://www.alfie.wtf) [alfie@alfie.wtf](mailto:alfie@alfie.wtf)
+[Alfie John](https://www.alfie.wtf) &lt;[alfie@alfie.wtf](mailto:alfie@alfie.wtf)&gt;
 
 # WARRANTY
 
