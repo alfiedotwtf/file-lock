@@ -1,14 +1,25 @@
+//! File locking via POSIX advisory record locks.
+//!
+//! This crate provides the facility to lock and unlock a file following the advisory record lock
+//! scheme as specified by UNIX IEEE Std 1003.1-2001 (POSIX.1) via `fcntl()`.
+//!
+
 #![feature(libc)]
 extern crate libc;
 
 use std::ffi::CString;
 
+/// Represents a lock on a file.
 pub struct Lock {
   _fd: i32,
 }
 
+/// Represents the error that occured while trying to lock or unlock a file.
 pub enum Error {
+  /// caused when the filename is invalid as it contains a nul byte.
   InvalidFilename,
+  /// caused when the error occurred at the filesystem layer (see
+  /// [errno](https://crates.io/crates/errno)).
   Errno(i32),
 }
 
@@ -24,6 +35,32 @@ macro_rules! _create_lock_type {
       fn $c_lock_type(filename: *const libc::c_char) -> c_result;
     }
 
+    /// Locks the specified file.
+    ///
+    /// The `lock()` and `lock_wait()` functions try to perform a lock on the specified file. The
+    /// difference between the two are what they do when another process has a lock on the same
+    /// file:
+    ///
+    /// * lock() - immediately return with an `Errno` error.
+    /// * lock_wait() - waits (i.e. blocks the running thread) for the current owner of the lock to
+    /// relinquish the lock.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use file_lock::*;
+    /// use file_lock::Error::*;
+    ///
+    /// let l = lock("/tmp/file-lock-test");
+    ///
+    /// match l {
+    ///     Ok(_)  => println!("Got lock"),
+    ///     Err(e) => match e {
+    ///         InvalidFilename => println!("Invalid filename"),
+    ///         Errno(i)        => println!("Got filesystem error {}", i),
+    ///     }
+    /// }
+    /// ```
     pub fn $lock_type(filename: &str) -> Result<Lock, Error> {
       let raw_filename = CString::new(filename);
 
@@ -50,6 +87,22 @@ extern {
   fn c_unlock(_fd: i32) -> c_result;
 }
 
+/// Unlocks the file held by `Lock`.
+///
+/// In reality, you shouldn't need to call `unlock()`. As `Lock` implements the `Drop` trait, once
+/// the `Lock` reference goes out of scope, `unlock()` will be called automatically.
+///
+/// # Example
+///
+/// ```
+/// use file_lock::*;
+/// use file_lock::Error::*;
+///
+/// let l = lock("/tmp/file-lock-test").ok().unwrap();
+///
+/// println!("Unlocking...");
+/// unlock(&l);
+/// ```
 pub fn unlock(lock: &Lock) -> Result<bool, Error> {
   unsafe {
     let my_result = c_unlock(lock._fd);
