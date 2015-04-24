@@ -2,13 +2,28 @@
 
 file-lock - File locking via POSIX advisory record locks
 
-# DESCRIPTION
-
-TODO
+This crate provides the facility to lock and unlock a file following the
+advisory record lock scheme as specified by UNIX IEEE Std 1003.1-2001 (POSIX.1)
+via fcntl().
 
 # USAGE
 
-TODO
+    extern crate file_lock;
+
+    use file_lock::*;
+    use file_lock::Error::*;
+    
+    fn main() {
+      let l = lock("/tmp/file-lock-test");
+    
+      match l {
+          Ok(_)  => println!("Got lock"),
+          Err(e) => match e {
+            InvalidFilename => println!("Invalid filename"),
+            Errno(i)        => println!("Got filesystem error {}", i),
+          }
+      }
+    }
 
 # SUPPORT
 

@@ -1,8 +1,29 @@
 //! File locking via POSIX advisory record locks.
 //!
-//! This crate provides the facility to lock and unlock a file following the advisory record lock
-//! scheme as specified by UNIX IEEE Std 1003.1-2001 (POSIX.1) via `fcntl()`.
+//! This crate provides the facility to lock and unlock a file following the
+//! advisory record lock scheme as specified by UNIX IEEE Std 1003.1-2001
+//! (POSIX.1) via `fcntl()`.
 //!
+//! # Examples
+//!
+//! ```
+//! extern crate file_lock;
+//!
+//! use file_lock::*;
+//! use file_lock::Error::*;
+//!
+//! fn main() {
+//!     let l = lock("/tmp/file-lock-test");
+//!
+//!     match l {
+//!         Ok(_)  => println!("Got lock"),
+//!         Err(e) => match e {
+//!             InvalidFilename => println!("Invalid filename"),
+//!             Errno(i)        => println!("Got filesystem error {}", i),
+//!         }
+//!     }
+//! }
+//! ```
 
 #![feature(libc)]
 extern crate libc;
@@ -37,27 +58,31 @@ macro_rules! _create_lock_type {
 
     /// Locks the specified file.
     ///
-    /// The `lock()` and `lock_wait()` functions try to perform a lock on the specified file. The
-    /// difference between the two are what they do when another process has a lock on the same
-    /// file:
+    /// The `lock()` and `lock_wait()` functions try to perform a lock on the
+    /// specified file. The difference between the two is what they do when
+    /// another process has a lock on the same file:
     ///
     /// * lock() - immediately return with an `Errno` error.
-    /// * lock_wait() - waits (i.e. blocks the running thread) for the current owner of the lock to
-    /// relinquish the lock.
+    /// * lock_wait() - waits (i.e. blocks the running thread) for the current
+    /// owner of the lock to relinquish the lock.
     ///
     /// # Example
     ///
     /// ```
+    /// extern crate file_lock;
+    ///
     /// use file_lock::*;
     /// use file_lock::Error::*;
     ///
-    /// let l = lock("/tmp/file-lock-test");
+    /// fn main() {
+    ///     let l = lock("/tmp/file-lock-test");
     ///
-    /// match l {
-    ///     Ok(_)  => println!("Got lock"),
-    ///     Err(e) => match e {
-    ///         InvalidFilename => println!("Invalid filename"),
-    ///         Errno(i)        => println!("Got filesystem error {}", i),
+    ///     match l {
+    ///         Ok(_)  => println!("Got lock"),
+    ///         Err(e) => match e {
+    ///             InvalidFilename => println!("Invalid filename"),
+    ///             Errno(i)        => println!("Got filesystem error {}", i),
+    ///         }
     ///     }
     /// }
     /// ```
@@ -89,19 +114,24 @@ extern {
 
 /// Unlocks the file held by `Lock`.
 ///
-/// In reality, you shouldn't need to call `unlock()`. As `Lock` implements the `Drop` trait, once
-/// the `Lock` reference goes out of scope, `unlock()` will be called automatically.
+/// In reality, you shouldn't need to call `unlock()`. As `Lock` implements
+/// the `Drop` trait, once the `Lock` reference goes out of scope, `unlock()`
+/// will be called automatically.
 ///
 /// # Example
 ///
 /// ```
+/// extern crate file_lock;
+///
 /// use file_lock::*;
-/// use file_lock::Error::*;
 ///
-/// let l = lock("/tmp/file-lock-test").ok().unwrap();
+/// fn main() {
+///     let l = lock("/tmp/file-lock-test").ok().unwrap();
 ///
-/// println!("Unlocking...");
-/// unlock(&l);
+///     if unlock(&l).is_ok() {
+///         println!("Unlocked!");
+///     }
+/// }
 /// ```
 pub fn unlock(lock: &Lock) -> Result<bool, Error> {
   unsafe {
