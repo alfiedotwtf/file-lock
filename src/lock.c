@@ -8,37 +8,37 @@ struct result {
   int error;
 };
 
-#define _LOCK(lock_type, cmd)                         \
-struct result lock_type(const char* pathname) {       \
-  struct result my_result;                            \
-                                                      \
-  int fd = open(                                      \
-    pathname,                                         \
-    (O_WRONLY | O_CREAT),                             \
-    (S_IRUSR | S_IWUSR | S_IRWXG | S_IRGRP | S_IROTH) \
-  );                                                  \
-                                                      \
-  if (fd == -1) {                                     \
-    my_result.fd    = -1;                             \
-    my_result.error = errno;                          \
-    return my_result;                                 \
-  }                                                   \
-                                                      \
-  struct flock fl;                                    \
-  fl.l_type   = F_WRLCK;                              \
-  fl.l_whence = SEEK_SET;                             \
-  fl.l_start  = 0;                                    \
-  fl.l_len    = 0;                                    \
-                                                      \
-  if (fcntl(fd, cmd, &fl) == -1) {                    \
-    my_result.fd    = -1;                             \
-    my_result.error = errno;                          \
-    return my_result;                                 \
-  }                                                   \
-                                                      \
-  my_result.fd    = fd;                               \
-  my_result.error = 0;                                \
-  return my_result;                                   \
+#define _LOCK(lock_type, cmd)                   \
+struct result lock_type(const char* pathname) { \
+  struct result my_result;                      \
+                                                \
+  int fd = open(                                \
+    pathname,                                   \
+    (O_WRONLY | O_CREAT),                       \
+    (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)     \
+  );                                            \
+                                                \
+  if (fd == -1) {                               \
+    my_result.fd    = -1;                       \
+    my_result.error = errno;                    \
+    return my_result;                           \
+  }                                             \
+                                                \
+  struct flock fl;                              \
+  fl.l_type   = F_WRLCK;                        \
+  fl.l_whence = SEEK_SET;                       \
+  fl.l_start  = 0;                              \
+  fl.l_len    = 0;                              \
+                                                \
+  if (fcntl(fd, cmd, &fl) == -1) {              \
+    my_result.fd    = -1;                       \
+    my_result.error = errno;                    \
+    return my_result;                           \
+  }                                             \
+                                                \
+  my_result.fd    = fd;                         \
+  my_result.error = 0;                          \
+  return my_result;                             \
 }
 
 _LOCK(c_lock,      F_SETLK);
