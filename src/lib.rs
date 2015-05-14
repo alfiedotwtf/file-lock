@@ -25,7 +25,6 @@
 //! }
 //! ```
 
-#![feature(libc)]
 extern crate libc;
 
 use std::ffi::CString;
