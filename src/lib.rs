@@ -13,7 +13,7 @@
 //! use file_lock::Error::*;
 //!
 //! fn main() {
-//!     let l = lock("/tmp/file-lock-test");
+//!     let l = Lock::create_file_and_lock("/tmp/file-lock-test", LockKind::NonBlocking);
 //!
 //!     match l {
 //!         Ok(_)  => println!("Got lock"),
@@ -52,12 +52,31 @@ struct c_result {
   _errno: i32,
 }
 
-macro_rules! _create_lock_type {
-  ($lock_type:ident, $c_lock_type:ident) => {
-    extern {
-        fn $c_lock_type(filename: *const libc::c_char) -> c_result;
-    }
+#[derive(Clone, Debug)]
+pub enum LockKind {
+    /// Indicates a lock file which 
+    NonBlocking,
+    Blocking,
+}
 
+impl Into<i32> for LockKind {
+    fn into(self) -> i32 {
+        match self {
+            LockKind::NonBlocking => 0,
+            LockKind::Blocking => 1,
+        }
+    }
+}
+
+extern {
+  fn c_lock(filename: *const libc::c_char, should_block: i32) -> c_result;
+  fn c_unlock(fd: i32) -> c_result;
+}
+
+impl Lock {
+
+
+    // TODO(ST): doc update once API has settled
     /// Locks the specified file.
     ///
     /// The `lock()` and `lock_wait()` functions try to perform a lock on the
@@ -77,7 +96,7 @@ macro_rules! _create_lock_type {
     /// use file_lock::Error::*;
     ///
     /// fn main() {
-    ///     let l = lock("/tmp/file-lock-test");
+    ///     let l = Lock::create_file_and_lock("/tmp/file-lock-test", LockKind::NonBlocking);
     ///
     ///     match l {
     ///         Ok(_)  => println!("Got lock"),
@@ -88,11 +107,11 @@ macro_rules! _create_lock_type {
     ///     }
     /// }
     /// ```
-    pub fn $lock_type(filename: &str) -> Result<Lock, Error> {
+    pub fn create_file_and_lock(filename: &str, kind: LockKind) -> Result<Lock, Error>{
         match CString::new(filename) {
             Err(_) => Err(Error::InvalidFilename),
             Ok(raw_filename) => {
-                let my_result = unsafe { $c_lock_type(raw_filename.as_ptr()) };
+                let my_result = unsafe { c_lock(raw_filename.as_ptr(), kind.into()) };
 
                 return match my_result._errno {
                    0 => Ok(Lock{_fd: my_result._fd}),
@@ -101,52 +120,44 @@ macro_rules! _create_lock_type {
             }
         }
     }
-  };
-}
 
-_create_lock_type!(lock, c_lock);
-_create_lock_type!(lock_wait, c_lock_wait);
+    /// Unlocks the file held by `Lock`.
+    ///
+    /// In reality, you shouldn't need to call `unlock()`. As `Lock` implements
+    /// the `Drop` trait, once the `Lock` reference goes out of scope, `unlock()`
+    /// will be called automatically.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// extern crate file_lock;
+    ///
+    /// use file_lock::*;
+    ///
+    /// fn main() {
+    ///     let l = Lock::create_file_and_lock("/tmp/file-lock-test", LockKind::NonBlocking).unwrap();
+    ///
+    ///     if l.unlock().is_ok() {
+    ///         println!("Unlocked!");
+    ///     }
+    /// }
+    /// ```
+    pub fn unlock(&self) -> Result<(), Error> {
+      unsafe {
+        let my_result = c_unlock(self._fd);
 
-extern {
-  fn c_unlock(_fd: i32) -> c_result;
-}
-
-/// Unlocks the file held by `Lock`.
-///
-/// In reality, you shouldn't need to call `unlock()`. As `Lock` implements
-/// the `Drop` trait, once the `Lock` reference goes out of scope, `unlock()`
-/// will be called automatically.
-///
-/// # Example
-///
-/// ```
-/// extern crate file_lock;
-///
-/// use file_lock::*;
-///
-/// fn main() {
-///     let l = lock("/tmp/file-lock-test").unwrap();
-///
-///     if unlock(&l).is_ok() {
-///         println!("Unlocked!");
-///     }
-/// }
-/// ```
-pub fn unlock(lock: &Lock) -> Result<(), Error> {
-  unsafe {
-    let my_result = c_unlock(lock._fd);
-
-    return match my_result._errno {
-       0 => Ok(()),
-       _ => Err(Error::Errno(my_result._errno)),
+        return match my_result._errno {
+           0 => Ok(()),
+           _ => Err(Error::Errno(my_result._errno)),
+        }
+      }
     }
-  }
 }
 
 #[allow(unused_must_use)]
 impl Drop for Lock {
   fn drop(&mut self) {
-    unlock(self);
+    self.unlock().ok();
   }
 }
 
@@ -165,59 +176,41 @@ mod test {
     // lock_wait() tests
 
     #[test]
-    fn lock_invalid_filename() {
-        assert_eq!(lock("null\0inside"), Err(Error::InvalidFilename));
-    }
-
-    #[test]
-    fn lock_errno() {
-        assert_eq!(lock(""), Err(Error::Errno(libc::consts::os::posix88::ENOENT)));
+    fn lock_invalid_filenames() {
+        for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
+            assert_eq!(Lock::create_file_and_lock("null\0inside", kind.clone()), 
+                       Err(Error::InvalidFilename));
+            assert_eq!(Lock::create_file_and_lock("", kind.clone()), 
+                       Err(Error::Errno(libc::consts::os::posix88::ENOENT)));
+        }
     }
 
     #[test]
     fn lock_ok() {
-        assert!(lock("/tmp/file-lock-test").is_ok());
-    }
-
-    // lock_wait() tests
-
-    #[test]
-    fn lock_wait_invalid_filename() {
-        assert_eq!(lock_wait("null\0inside"), Err(Error::InvalidFilename));
+        for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
+            assert!(Lock::create_file_and_lock("/tmp/file-lock-test", kind.clone()).is_ok());
+        }
     }
 
     #[test]
-    fn lock_wait_errno() {
-        assert_eq!(lock_wait(""), Err(Error::Errno(libc::consts::os::posix88::ENOENT)));
-    }
-
-    #[test]
-    fn lock_wait_ok() {
-        assert!(lock_wait("/tmp/file-lock-test").is_ok());
-    }
-
-    // unlock()
-
-    
-    // fcntl() will only allow us to hold a single lock on a file at a time
-    // so this test can't work :(
-    
-    #[test]
-    #[should_panic]
     fn unlock_error() {
-        let l1 = lock("/tmp/file-lock-test");
-        let l2 = lock("/tmp/file-lock-test");
-    
-        assert!(l1.is_ok());
-        assert!(l2.is_err());
+        for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
+            let l1 = Lock::create_file_and_lock("/tmp/file-lock-test", kind.clone());
+            let l2 = Lock::create_file_and_lock("/tmp/file-lock-test", kind.clone());
+        
+            assert!(l1.is_ok());
+            // fcntl() will only allow us to hold a single lock on a file at a time
+            // so this test can't work :(
+            assert!(l2.is_ok());
+        }
     }
     
-
     #[test]
     fn unlock_ok() {
-        let l        = lock_wait("/tmp/file-lock-test");
-        let unlocked = l.unwrap();
-
-        assert!(unlock(&unlocked).is_ok(), true);
+        for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
+            let l = Lock::create_file_and_lock("/tmp/file-lock-test", kind.clone()).unwrap();
+            assert!(l.unlock().is_ok());
+            assert_eq!(l.unlock(), Err(Error::Errno(libc::consts::os::posix88::EBADF)));
+        }
     }
 }
