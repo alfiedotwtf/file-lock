@@ -1,6 +1,6 @@
 [package]
 name = "file-lock"
-version = "0.0.14"
+version = "0.0.15"
 authors = ["Alfie John <alfie@alfie.wtf>"]
 description = "File locking via POSIX advisory record locks"
 
@@ -8,7 +8,7 @@ documentation = "https://www.alfie.wtf/rust-doc/file_lock/"
 homepage = "https://crates.io/crates/file-lock"
 repository = "https://github.com/alfiedotwtf/file-lock"
 
-license = "LGPL-3.0"
+license = "MIT"
 
 build = "build.rs"
 
