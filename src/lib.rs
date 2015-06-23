@@ -131,12 +131,12 @@ extern {
 ///     }
 /// }
 /// ```
-pub fn unlock(lock: &Lock) -> Result<bool, Error> {
+pub fn unlock(lock: &Lock) -> Result<(), Error> {
   unsafe {
     let my_result = c_unlock(lock._fd);
 
     return match my_result._errno {
-       0 => Ok(true),
+       0 => Ok(()),
        _ => Err(Error::Errno(my_result._errno)),
     }
   }
