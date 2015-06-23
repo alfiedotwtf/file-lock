@@ -28,11 +28,12 @@
 extern crate libc;
 
 use std::ffi::CString;
+use std::os::unix::io::RawFd;
 
 /// Represents a lock on a file.
 #[derive(Debug, Eq, PartialEq)]
 pub struct Lock {
-  _fd: i32,
+  _fd: RawFd,
 }
 
 /// Represents the error that occurred while trying to lock or unlock a file.
@@ -47,7 +48,7 @@ pub enum Error {
 
 #[repr(C)]
 struct c_result {
-  _fd:    i32,
+  _fd:    RawFd,
   _errno: i32,
 }
 
