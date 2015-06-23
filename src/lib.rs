@@ -54,7 +54,7 @@ struct c_result {
 macro_rules! _create_lock_type {
   ($lock_type:ident, $c_lock_type:ident) => {
     extern {
-      fn $c_lock_type(filename: *const libc::c_char) -> c_result;
+        fn $c_lock_type(filename: *const libc::c_char) -> c_result;
     }
 
     /// Locks the specified file.
@@ -88,20 +88,17 @@ macro_rules! _create_lock_type {
     /// }
     /// ```
     pub fn $lock_type(filename: &str) -> Result<Lock, Error> {
-      let raw_filename = CString::new(filename);
+        match CString::new(filename) {
+            Err(_) => Err(Error::InvalidFilename),
+            Ok(raw_filename) => {
+                let my_result = unsafe { $c_lock_type(raw_filename.as_ptr()) };
 
-      if raw_filename.is_err() {
-        return Err(Error::InvalidFilename);
-      }
-
-      unsafe {
-        let my_result = $c_lock_type(raw_filename.unwrap().as_ptr());
-
-        return match my_result._fd {
-          -1 => Err(Error::Errno(my_result._errno)),
-           _ => Ok(Lock{_fd: my_result._fd}),
+                return match my_result._fd {
+                  -1 => Err(Error::Errno(my_result._errno)),
+                   _ => Ok(Lock{_fd: my_result._fd}),
+                }
+            }
         }
-      }
     }
   };
 }
