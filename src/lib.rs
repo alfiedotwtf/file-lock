@@ -93,9 +93,9 @@ macro_rules! _create_lock_type {
             Ok(raw_filename) => {
                 let my_result = unsafe { $c_lock_type(raw_filename.as_ptr()) };
 
-                return match my_result._fd {
-                  -1 => Err(Error::Errno(my_result._errno)),
-                   _ => Ok(Lock{_fd: my_result._fd}),
+                return match my_result._errno {
+                   0 => Ok(Lock{_fd: my_result._fd}),
+                   _ => Err(Error::Errno(my_result._errno)),
                 }
             }
         }
@@ -135,9 +135,9 @@ pub fn unlock(lock: &Lock) -> Result<bool, Error> {
   unsafe {
     let my_result = c_unlock(lock._fd);
 
-    return match my_result._fd {
-      -1 => Err(Error::Errno(my_result._errno)),
-       _ => Ok(true),
+    return match my_result._errno {
+       0 => Ok(true),
+       _ => Err(Error::Errno(my_result._errno)),
     }
   }
 }
