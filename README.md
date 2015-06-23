@@ -27,7 +27,7 @@ via fcntl().
 
 # DOCUMENTATION
 
-* [https://alfiedotwtf.github.io/file-lock/][https://alfiedotwtf.github.io/file-lock/]
+* [https://alfiedotwtf.github.io/file-lock/](https://alfiedotwtf.github.io/file-lock/)
 
 # SUPPORT
 
