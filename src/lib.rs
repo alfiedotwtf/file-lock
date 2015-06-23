@@ -1,3 +1,5 @@
+//#![doc(html_root_url = "https://alfiedotwtf.github.io/file-lock/")]
+
 //! File locking via POSIX advisory record locks.
 //!
 //! This crate provides the facility to lock and unlock a file following the

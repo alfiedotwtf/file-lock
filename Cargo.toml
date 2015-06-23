@@ -4,7 +4,7 @@ version = "0.0.16"
 authors = ["Alfie John <alfie@alfie.wtf>"]
 description = "File locking via POSIX advisory record locks"
 
-documentation = "https://www.alfie.wtf/rust-doc/file_lock/"
+documentation = "https://alfiedotwtf.github.io/file-lock/"
 homepage = "https://crates.io/crates/file-lock"
 repository = "https://github.com/alfiedotwtf/file-lock"
 

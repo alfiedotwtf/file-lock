@@ -25,6 +25,10 @@ via fcntl().
       }
     }
 
+# DOCUMENTATION
+
+* [https://alfiedotwtf.github.io/file-lock/][https://alfiedotwtf.github.io/file-lock/]
+
 # SUPPORT
 
 [![Build Status](https://travis-ci.org/alfiedotwtf/file-lock.svg?branch=idiomatic-rust)](https://travis-ci.org/alfiedotwtf/file-lock)
