@@ -33,6 +33,7 @@ struct result lock_type(const char* pathname) { \
   if (fcntl(fd, cmd, &fl) == -1) {              \
     my_result.fd    = -1;                       \
     my_result.error = errno;                    \
+    close(fd);                                  \
     return my_result;                           \
   }                                             \
                                                 \
