@@ -27,6 +27,8 @@ via fcntl().
 
 # SUPPORT
 
+[![Build Status](https://travis-ci.org/alfiedotwtf/file-lock.svg?branch=idiomatic-rust)](https://travis-ci.org/alfiedotwtf/file-lock)
+
 Please report any bugs or feature requests at:
 
 * [https://github.com/alfiedotwtf/file-lock/issues](https://github.com/alfiedotwtf/file-lock/issues)
