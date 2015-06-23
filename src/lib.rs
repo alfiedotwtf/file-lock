@@ -30,13 +30,15 @@ extern crate libc;
 use std::ffi::CString;
 
 /// Represents a lock on a file.
+#[derive(Debug, Eq, PartialEq)]
 pub struct Lock {
   _fd: i32,
 }
 
-/// Represents the error that occured while trying to lock or unlock a file.
+/// Represents the error that occurred while trying to lock or unlock a file.
+#[derive(Debug, Eq, PartialEq)]
 pub enum Error {
-  /// caused when the filename is invalid as it contains a nul byte.
+  /// caused when the filename is invalid as it contains a null byte.
   InvalidFilename,
   /// caused when the error occurred at the filesystem layer (see
   /// [errno](https://crates.io/crates/errno)).
@@ -52,7 +54,7 @@ struct c_result {
 macro_rules! _create_lock_type {
   ($lock_type:ident, $c_lock_type:ident) => {
     extern {
-      fn $c_lock_type(filename: *const libc::c_char) -> c_result;
+        fn $c_lock_type(filename: *const libc::c_char) -> c_result;
     }
 
     /// Locks the specified file.
@@ -86,20 +88,17 @@ macro_rules! _create_lock_type {
     /// }
     /// ```
     pub fn $lock_type(filename: &str) -> Result<Lock, Error> {
-      let raw_filename = CString::new(filename);
+        match CString::new(filename) {
+            Err(_) => Err(Error::InvalidFilename),
+            Ok(raw_filename) => {
+                let my_result = unsafe { $c_lock_type(raw_filename.as_ptr()) };
 
-      if raw_filename.is_err() {
-        return Err(Error::InvalidFilename);
-      }
-
-      unsafe {
-        let my_result = $c_lock_type(raw_filename.unwrap().as_ptr());
-
-        return match my_result._fd {
-          -1 => Err(Error::Errno(my_result._errno)),
-           _ => Ok(Lock{_fd: my_result._fd}),
+                return match my_result._errno {
+                   0 => Ok(Lock{_fd: my_result._fd}),
+                   _ => Err(Error::Errno(my_result._errno)),
+                }
+            }
         }
-      }
     }
   };
 }
@@ -125,20 +124,20 @@ extern {
 /// use file_lock::*;
 ///
 /// fn main() {
-///     let l = lock("/tmp/file-lock-test").ok().unwrap();
+///     let l = lock("/tmp/file-lock-test").unwrap();
 ///
 ///     if unlock(&l).is_ok() {
 ///         println!("Unlocked!");
 ///     }
 /// }
 /// ```
-pub fn unlock(lock: &Lock) -> Result<bool, Error> {
+pub fn unlock(lock: &Lock) -> Result<(), Error> {
   unsafe {
     let my_result = c_unlock(lock._fd);
 
-    return match my_result._fd {
-      -1 => Err(Error::Errno(my_result._errno)),
-       _ => Ok(true),
+    return match my_result._errno {
+       0 => Ok(()),
+       _ => Err(Error::Errno(my_result._errno)),
     }
   }
 }
@@ -152,6 +151,8 @@ impl Drop for Lock {
 
 #[cfg(test)]
 mod test {
+    use libc;
+    
     use super::*;
     use super::Error::*;
 
@@ -164,80 +165,57 @@ mod test {
 
     #[test]
     fn lock_invalid_filename() {
-        assert_eq!(_lock("null\0inside"), "invalid");
+        assert_eq!(lock("null\0inside"), Err(Error::InvalidFilename));
     }
 
     #[test]
     fn lock_errno() {
-        assert_eq!(_lock(""), "errno");
+        assert_eq!(lock(""), Err(Error::Errno(libc::consts::os::posix88::ENOENT)));
     }
 
     #[test]
     fn lock_ok() {
-        assert_eq!(_lock("/tmp/file-lock-test"), "ok");
-    }
-
-    fn _lock(filename: &str) -> &str {
-        let l = lock(filename);
-
-        match l {
-            Ok(_)  => "ok",
-            Err(e) => match e {
-                InvalidFilename => "invalid",
-                Errno(_)        => "errno",
-            }
-        }
+        assert!(lock("/tmp/file-lock-test").is_ok());
     }
 
     // lock_wait() tests
 
     #[test]
     fn lock_wait_invalid_filename() {
-        assert_eq!(_lock_wait("null\0inside"), "invalid");
+        assert_eq!(lock_wait("null\0inside"), Err(Error::InvalidFilename));
     }
 
     #[test]
     fn lock_wait_errno() {
-        assert_eq!(_lock_wait(""), "errno");
+        assert_eq!(lock_wait(""), Err(Error::Errno(libc::consts::os::posix88::ENOENT)));
     }
 
     #[test]
     fn lock_wait_ok() {
-        assert_eq!(_lock_wait("/tmp/file-lock-test"), "ok");
-    }
-
-    fn _lock_wait(filename: &str) -> &str {
-        let l = lock_wait(filename);
-
-        match l {
-            Ok(_)  => "ok",
-            Err(e) => match e {
-                InvalidFilename => "invalid",
-                Errno(_)        => "errno",
-            }
-        }
+        assert!(lock_wait("/tmp/file-lock-test").is_ok());
     }
 
     // unlock()
 
-    //
+    
     // fcntl() will only allow us to hold a single lock on a file at a time
     // so this test can't work :(
-    //
-    // #[test]
-    // fn unlock_error() {
-    //     let l1 = lock("/tmp/file-lock-test");
-    //     let l2 = lock("/tmp/file-lock-test");
-    //
-    //     assert!(l1.is_ok());
-    //     assert!(l2.is_err());
-    // }
-    //
+    
+    #[test]
+    #[should_panic]
+    fn unlock_error() {
+        let l1 = lock("/tmp/file-lock-test");
+        let l2 = lock("/tmp/file-lock-test");
+    
+        assert!(l1.is_ok());
+        assert!(l2.is_err());
+    }
+    
 
     #[test]
     fn unlock_ok() {
         let l        = lock_wait("/tmp/file-lock-test");
-        let unlocked = l.ok().unwrap();
+        let unlocked = l.unwrap();
 
         assert!(unlock(&unlocked).is_ok(), true);
     }

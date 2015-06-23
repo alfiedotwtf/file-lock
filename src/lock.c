@@ -54,7 +54,7 @@ struct result c_unlock(int fd) {
     return my_result;
   }
 
-  my_result.fd    = 0;
+  my_result.fd    = -1;
   my_result.error = 0;
   return my_result;
 }
