@@ -24,7 +24,6 @@ name = "file_lock"
 libc = "*"
 
 [dev-dependencies]
-tempdir = "*"
 tempfile = "*"
 
 [build-dependencies]

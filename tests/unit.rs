@@ -1,45 +1,16 @@
 extern crate file_lock;
 extern crate libc;
 
+mod support;
+
 use file_lock::*;
 
 use std::env;
-use std::fs::{File, OpenOptions, remove_file};
 use std::path::PathBuf;
-use std::os::unix::io::{RawFd, AsRawFd};
+use std::os::unix::io::RawFd;
 
 
-
-struct TempFile {
-    inner: File,
-    path: PathBuf
-}
-
-impl TempFile {
-    fn new(name: &str) -> TempFile {
-        let mut path = env::temp_dir();
-        path.push(name);
-
-        TempFile {
-            inner: OpenOptions::new()
-                               .create(true)
-                               .write(true)
-                               .open(&path).unwrap(),
-            path: path,
-        }
-    }
-
-    fn fd(&self) -> RawFd {
-        self.inner.as_raw_fd()
-    }
-}
-
-impl Drop for TempFile {
-    fn drop(&mut self) {
-        remove_file(&self.path).ok();
-    }
-}
-
+use support::TempFile;
 
 //
 // unfortunately we can't abstract this out for lock() and lock_wait()
