@@ -3,14 +3,10 @@ extern crate libc;
 
 mod support;
 
-use file_lock::*;
-
-use std::env;
-use std::path::PathBuf;
 use std::os::unix::io::RawFd;
 
-
 use support::TempFile;
+use file_lock::*;
 
 //
 // unfortunately we can't abstract this out for lock() and lock_wait()

@@ -6,7 +6,6 @@ before_script:
 - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
 script:
 - travis-cargo build
-<<<<<<< HEAD
 # tests currently require unstable features of tempfile crate, and can't run on stable
 - if `test $TRAVIS_RUST_VERSION = nightly`; then travis-cargo test; fi
 - travis-cargo doc
