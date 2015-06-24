@@ -1,10 +1,14 @@
 //! File locking via POSIX advisory record locks.
 //!
-//! This crate provides the facility to lock and unlock a file following the
-//! advisory record lock scheme as specified by UNIX IEEE Std 1003.1-2001
+//! This crate provides the facility to obtain a write-lock and unlock a file 
+//! following the advisory record lock scheme as specified by UNIX IEEE Std 1003.1-2001
 //! (POSIX.1) via `fcntl()`.
 //!
 //! # Examples
+//!
+//! Please note that the examples use `tempfile` merely to quickly create a file
+//! which is removed automatically. In the common case, you would want to lock
+//! a file which is known to multiple processes.
 //!
 //! ```
 //! extern crate file_lock;
@@ -28,7 +32,44 @@ extern crate libc;
 
 use std::os::unix::io::RawFd;
 
-/// Represents a lock on a file.
+/// Represents a write lock on a file.
+///
+/// The `lock(LockKind)` method tries to obtain a write-lock on the
+/// file identified by a file-descriptor. 
+/// One can obtain different kinds of write-locks.
+///
+/// * LockKind::NonBlocking - immediately return with an `Errno` error.
+/// * LockKind::Blocking - waits (i.e. blocks the running thread) for the current
+/// owner of the lock to relinquish the lock.
+///
+/// # Example
+///
+/// Please note that the examples use `tempfile` merely to quickly create a file
+/// which is removed automatically. In the common case, you would want to lock
+/// a file which is known to multiple processes.
+///
+/// ```
+/// extern crate file_lock;
+/// extern crate tempfile;
+///
+/// use file_lock::*;
+/// use std::os::unix::io::AsRawFd;
+///
+/// fn main() {
+///     let f = tempfile::TempFile::new().unwrap();
+///
+///     match Lock::new(f.as_raw_fd()).lock(LockKind::NonBlocking) {
+///         Ok(_)  => {
+///             // we have a lock, which is discarded automatically. Otherwise you could call
+///             // `unlock()` to make it explicit
+///             // 
+///             println!("Got lock");
+///         },
+///         Err(Error::Errno(i))
+///               => println!("Got filesystem error {}", i),
+///     }
+/// }
+/// ```
 #[derive(Debug, Eq, PartialEq)]
 pub struct Lock {
   fd: RawFd,
@@ -42,6 +83,7 @@ pub enum Error {
   Errno(i32),
 }
 
+/// Represents the kind of lock (e.g. *blocking*, *non-blocking*)
 #[derive(Clone, Debug)]
 pub enum LockKind {
     /// Indicates a lock file which 
@@ -66,45 +108,16 @@ extern {
 impl Lock {
     /// Create a new lock instance from the given file descriptor `fd`.
     /// 
-    /// You will have to call `lock()` on it to acquire any lock.
-    ///
-    // TODO(ST): doc update once API has settled
-    /// Locks the specified file.
-    ///
-    /// The `lock()` and `lock_wait()` functions try to perform a lock on the
-    /// specified file. The difference between the two is what they do when
-    /// another process has a lock on the same file:
-    ///
-    /// * lock() - immediately return with an `Errno` error.
-    /// * lock_wait() - waits (i.e. blocks the running thread) for the current
-    /// owner of the lock to relinquish the lock.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// extern crate file_lock;
-    /// extern crate tempfile;
-    ///
-    /// use file_lock::*;
-    /// use std::os::unix::io::AsRawFd;
-    ///
-    /// fn main() {
-    ///     let f = tempfile::TempFile::new().unwrap();
-    ///
-    ///     match Lock::new(f.as_raw_fd()).lock(LockKind::NonBlocking) {
-    ///         Ok(_)  => println!("Got lock"),
-    ///         Err(Error::Errno(i))
-    ///               => println!("Got filesystem error {}", i),
-    ///     }
-    /// }
-    /// ```
+    /// You will have to call `lock(...)` on it to acquire any lock.
     pub fn new(fd: RawFd) -> Lock {
         Lock {
             fd:   fd,
         }
     }
 
-    /// Lock the file-descriptor 
+    /// Obtain a write-lock the file-descriptor
+    /// 
+    /// For an example, please see the documentation of the [`Lock`](struct.Lock.html) structure.
     pub fn lock(&self, kind: LockKind) -> Result<(), Error> {
         let errno = unsafe { c_lock(self.fd, kind.into()) };
 
@@ -120,25 +133,7 @@ impl Lock {
     /// the `Drop` trait, once the `Lock` reference goes out of scope, `unlock()`
     /// will be called automatically.
     ///
-    /// # Example
-    ///
-    /// ```
-    /// extern crate file_lock;
-    /// extern crate tempfile;
-    ///
-    /// use file_lock::*;
-    /// use std::os::unix::io::AsRawFd;
-    ///
-    /// fn main() {
-    ///     let f = tempfile::TempFile::new().unwrap();
-    ///     let l = Lock::new(f.as_raw_fd());
-    ///     l.lock(LockKind::NonBlocking).unwrap();
-    ///     if l.unlock().is_ok() {
-    ///         println!("unlock successful");
-    ///     }
-    /// }
-    /// ```
-
+    /// For an example, please see the documentation of the [`Lock`](struct.Lock.html) structure.
     pub fn unlock(&self) -> Result<(), Error> {
       unsafe {
         let errno = c_unlock(self.fd);
