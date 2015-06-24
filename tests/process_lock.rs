@@ -32,11 +32,12 @@ fn inter_process_lock() {
             let exec_self_status = || -> ExitStatus {
                 Command::new(env::current_exe().unwrap())
                         .env(ENV_LOCK_FILE, t.path())
-                        .status().unwrap()
+                        .output().unwrap().status
             };
             
             {
-                let _ = Lock::new(t.fd()).lock(LockKind::NonBlocking, AccessMode::Write);
+                let l = Lock::new(t.fd());
+                l.lock(LockKind::NonBlocking, AccessMode::Write).unwrap();
                 assert!(!exec_self_status().success(), "Other process can't take lock");
             }
 

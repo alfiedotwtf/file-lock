@@ -32,6 +32,10 @@ impl TempFile {
     pub fn path(&self) -> &Path {
         self.path.as_ref()
     }
+
+    pub fn stream(&mut self) -> &mut File {
+        &mut self.inner
+    }
 }
 
 impl Drop for TempFile {
