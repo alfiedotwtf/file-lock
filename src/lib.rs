@@ -6,20 +6,20 @@
 //!
 //! # Examples
 //!
-//! ```ignore
+//! ```
 //! extern crate file_lock;
+//! extern crate tempfile;
 //!
 //! use file_lock::*;
-//! use file_lock::Error::*;
+//! use std::os::unix::io::AsRawFd;
 //!
 //! fn main() {
-//!     let l = Lock::create_file_and_lock("/tmp/file-lock-test", LockKind::NonBlocking);
+//!     let f = tempfile::TempFile::new().unwrap();
 //!
-//!     match l {
+//!     match Lock::new(f.as_raw_fd()).lock(LockKind::NonBlocking) {
 //!         Ok(_)  => println!("Got lock"),
-//!         Err(e) => match e {
-//!             Errno(i)        => println!("Got filesystem error {}", i),
-//!         }
+//!         Err(Error::Errno(i))
+//!               => println!("Got filesystem error {}", i),
 //!     }
 //! }
 //! ```
@@ -81,20 +81,20 @@ impl Lock {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```
     /// extern crate file_lock;
+    /// extern crate tempfile;
     ///
     /// use file_lock::*;
-    /// use file_lock::Error::*;
+    /// use std::os::unix::io::AsRawFd;
     ///
     /// fn main() {
-    ///     let l = Lock::create_file_and_lock("/tmp/file-lock-test", LockKind::NonBlocking);
+    ///     let f = tempfile::TempFile::new().unwrap();
     ///
-    ///     match l {
+    ///     match Lock::new(f.as_raw_fd()).lock(LockKind::NonBlocking) {
     ///         Ok(_)  => println!("Got lock"),
-    ///         Err(e) => match e {
-    ///             Errno(i)        => println!("Got filesystem error {}", i),
-    ///         }
+    ///         Err(Error::Errno(i))
+    ///               => println!("Got filesystem error {}", i),
     ///     }
     /// }
     /// ```
@@ -122,19 +122,23 @@ impl Lock {
     ///
     /// # Example
     ///
-    /// ```ignore
+    /// ```
     /// extern crate file_lock;
+    /// extern crate tempfile;
     ///
     /// use file_lock::*;
+    /// use std::os::unix::io::AsRawFd;
     ///
     /// fn main() {
-    ///     let l = Lock::create_file_and_lock("/tmp/file-lock-test", LockKind::NonBlocking).unwrap();
-    ///
+    ///     let f = tempfile::TempFile::new().unwrap();
+    ///     let l = Lock::new(f.as_raw_fd());
+    ///     l.lock(LockKind::NonBlocking).unwrap();
     ///     if l.unlock().is_ok() {
-    ///         println!("Unlocked!");
+    ///         println!("unlock successful");
     ///     }
     /// }
     /// ```
+
     pub fn unlock(&self) -> Result<(), Error> {
       unsafe {
         let errno = c_unlock(self.fd);
