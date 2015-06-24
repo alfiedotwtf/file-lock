@@ -6,6 +6,7 @@ before_script:
 - pip install 'travis-cargo<0.2' --user && export PATH=$HOME/.local/bin:$PATH
 script:
 - travis-cargo build
+<<<<<<< HEAD
 # tests currently require unstable features of tempfile crate, and can't run on stable
 - if `test $TRAVIS_RUST_VERSION = nightly`; then travis-cargo test; fi
 - travis-cargo doc
@@ -14,4 +15,4 @@ after_success:
 - if `test $TRAVIS_RUST_VERSION = nightly`; then travis-cargo doc-upload; fi
 env:
   global:
-    secure: VJOOFTlmkCYlvdS1fCZ9dATh3H49rdK5wZZTCa6GmJgxUiCAmDUIYvVIdhJQkYrPygpawRSp5z4uWwN2mAWRGBnAOxCbaB6gNnXQGBGvcs+QhyW7m+fMtmXJ+DIW7Sd012VijX56Wr2mbiKEfCXS4xd5QcmdKng/2NKz1zmqFD+9UB9r7VnushMgRyWvvt89FDrhiYutf3vPkNTgDBxsC+mp7P9FYYdPvx1jQL2X1eK9+qeuB4iE7BzRifsK1/acXcgyMjsxUHswl1adQ9tNm/epfZo1I/mdCBtTVVXGUMYI8333EUIMlZQMPbnNOZ0U4lsEFRQ4MqSmq2p//IKKNU7KJaEak3da/wxW5SMzry0r69JQrmvQfj6AmQ8CqChgeSGB3rf/peK72VmDDPk2k1wLcr0OTvags0QD2NFpB7ksqBpZRzxJzz90IUWc0TmYNiWrU5BJjGbelirTEp9svWJM2MDnQKHKWo5lEeN85QwOuvkXDg3Puft/fhgdYz/kVRdUPjnxCWoO8IA8tz9pqgAt7+8zbWChYOosUDeooclw7ab9cPlN28233DtjsVlUwvqxwgooSJiebnrGewdn7Z6IlDaMmg44Z5wgheMExb+fX8dITB6hAMKTyuPQDow6gZcfraXL37sLLFzdNL1Bh9FFi82GTp1CCWwdMDF5slE=
+    secure: E1GHfJJTq1UhswKdlkrzg9LdaUMW04vQK2tpba6TQcqg+wsxMk7a7qtt2mnMQVjM73glotszrVyfXpmdbJJHEYBS6eO22QSWUBKlSlG4iEKc316gSWOQtOPE72FqGsxtzCQKudQLv1W191kUSJoD5Wrhu0P+DEjgFxXUgaGaegNx0I5ZF/vFlnlh5U4R+UOKxnM0ZyaTvMb2N4RjN9S7tthtpaukvBMcw8KZtEaaQxRDtiXvLDDE+xQH4u4tyayVN/LSXk3Z+D+Wugc9a0pZnTP1x3yibpH1KLuV6xpVwYastcLZA7oY1nsDe+GHK8jVcuUFmKdoxvc11wuZM5tqF9ilTYU62U+zavrp/+D4tkJ3PN+zP15o6l/1EaqV6IzCmZoMprlIB16Enwcj+xmkozAluRauL2EMv939jnZAYIPd7F6ZXeElkYHo9fzrsgpuvMfVHotxQ3X+L6SYSaFcWGUw/WLZK/muO4Eqn0nQIkNLRKGOm+tFVwbMOpwrhO0NZsJkfKzl+piLaslZMbV05xaaoe2dTz3e6Zw7NS3SxUK1RhdqeSv3UDI7QfmBmIZMwdJZQtjSuIfwzFRkYrc0lV1pkbgmsfJPSe1oJxNY2BdppZlR0dD8vqW/tjpDWUs/INVvSLwODYGSm6FYgl7L5UlYUZ5wIBUHnLmigkTuWIQ=

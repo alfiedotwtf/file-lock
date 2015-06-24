@@ -25,6 +25,10 @@ via fcntl().
       }
     }
 
+# DOCUMENTATION
+
+* [https://alfiedotwtf.github.io/file-lock/](https://alfiedotwtf.github.io/file-lock/)
+
 # SUPPORT
 
 [![Build Status](https://travis-ci.org/alfiedotwtf/file-lock.svg?branch=idiomatic-rust)](https://travis-ci.org/alfiedotwtf/file-lock)
@@ -47,9 +51,11 @@ Feel free to fork the repository and submit pull requests :)
 
 * [Lock, Stock and Two Smoking Barrels](http://www.imdb.com/title/tt0120735/)
 
-# AUTHOR
+# AUTHORS
 
 [Alfie John](https://www.alfie.wtf) &lt;[alfie@alfie.wtf](mailto:alfie@alfie.wtf)&gt;
+
+[Sebastian Thiel](http://byronimo.de) &lt;[byronimo@gmail.com](mailto:byronimo@gmail.com)&gt;
 
 # WARRANTY
 
