@@ -6,7 +6,7 @@
 //!
 //! # Examples
 //!
-//! ```
+//! ```ignore
 //! extern crate file_lock;
 //!
 //! use file_lock::*;
@@ -18,7 +18,6 @@
 //!     match l {
 //!         Ok(_)  => println!("Got lock"),
 //!         Err(e) => match e {
-//!             InvalidFilename => println!("Invalid filename"),
 //!             Errno(i)        => println!("Got filesystem error {}", i),
 //!         }
 //!     }
@@ -27,29 +26,20 @@
 
 extern crate libc;
 
-use std::ffi::CString;
 use std::os::unix::io::RawFd;
 
 /// Represents a lock on a file.
 #[derive(Debug, Eq, PartialEq)]
 pub struct Lock {
-  _fd: RawFd,
+  fd: RawFd,
 }
 
 /// Represents the error that occurred while trying to lock or unlock a file.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Error {
-  /// caused when the filename is invalid as it contains a null byte.
-  InvalidFilename,
   /// caused when the error occurred at the filesystem layer (see
   /// [errno](https://crates.io/crates/errno)).
   Errno(i32),
-}
-
-#[repr(C)]
-struct c_result {
-  _fd:    RawFd,
-  _errno: i32,
 }
 
 #[derive(Clone, Debug)]
@@ -69,13 +59,15 @@ impl Into<i32> for LockKind {
 }
 
 extern {
-  fn c_lock(filename: *const libc::c_char, should_block: i32) -> c_result;
-  fn c_unlock(fd: i32) -> c_result;
+  fn c_lock(fd: i32, should_block: i32) -> i32;
+  fn c_unlock(fd: i32) -> i32;
 }
 
 impl Lock {
-
-
+    /// Create a new lock instance from the given file descriptor `fd`.
+    /// 
+    /// You will have to call `lock()` on it to acquire any lock.
+    ///
     // TODO(ST): doc update once API has settled
     /// Locks the specified file.
     ///
@@ -89,7 +81,7 @@ impl Lock {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```ignore
     /// extern crate file_lock;
     ///
     /// use file_lock::*;
@@ -101,23 +93,24 @@ impl Lock {
     ///     match l {
     ///         Ok(_)  => println!("Got lock"),
     ///         Err(e) => match e {
-    ///             InvalidFilename => println!("Invalid filename"),
     ///             Errno(i)        => println!("Got filesystem error {}", i),
     ///         }
     ///     }
     /// }
     /// ```
-    pub fn create_file_and_lock(filename: &str, kind: LockKind) -> Result<Lock, Error>{
-        match CString::new(filename) {
-            Err(_) => Err(Error::InvalidFilename),
-            Ok(raw_filename) => {
-                let my_result = unsafe { c_lock(raw_filename.as_ptr(), kind.into()) };
+    pub fn new(fd: RawFd) -> Lock {
+        Lock {
+            fd:   fd,
+        }
+    }
 
-                return match my_result._errno {
-                   0 => Ok(Lock{_fd: my_result._fd}),
-                   _ => Err(Error::Errno(my_result._errno)),
-                }
-            }
+    /// Lock the file-descriptor 
+    pub fn lock(&self, kind: LockKind) -> Result<(), Error> {
+        let errno = unsafe { c_lock(self.fd, kind.into()) };
+
+        return match errno {
+           0 => Ok(()),
+           _ => Err(Error::Errno(errno)),
         }
     }
 
@@ -129,7 +122,7 @@ impl Lock {
     ///
     /// # Example
     ///
-    /// ```
+    /// ```ignore
     /// extern crate file_lock;
     ///
     /// use file_lock::*;
@@ -144,11 +137,11 @@ impl Lock {
     /// ```
     pub fn unlock(&self) -> Result<(), Error> {
       unsafe {
-        let my_result = c_unlock(self._fd);
+        let errno = c_unlock(self.fd);
 
-        return match my_result._errno {
+        return match errno {
            0 => Ok(()),
-           _ => Err(Error::Errno(my_result._errno)),
+           _ => Err(Error::Errno(errno)),
         }
       }
     }
@@ -164,9 +157,44 @@ impl Drop for Lock {
 #[cfg(test)]
 mod test {
     use libc;
-    
+
+    use std::env;
+    use std::fs::{File, OpenOptions, remove_file};
+    use std::path::PathBuf;
+    use std::os::unix::io::{RawFd, AsRawFd};
+
     use super::*;
-    use super::Error::*;
+
+    struct TempFile {
+        inner: File,
+        path: PathBuf
+    }
+
+    impl TempFile {
+        fn new(name: &str) -> TempFile {
+            let mut path = env::temp_dir();
+            path.push(name);
+
+            TempFile {
+                inner: OpenOptions::new()
+                                   .create(true)
+                                   .write(true)
+                                   .open(&path).unwrap(),
+                path: path,
+            }
+        }
+
+        fn fd(&self) -> RawFd {
+            self.inner.as_raw_fd()
+        }
+    }
+
+    impl Drop for TempFile {
+        fn drop(&mut self) {
+            remove_file(&self.path).ok();
+        }
+    }
+
 
     //
     // unfortunately we can't abstract this out for lock() and lock_wait()
@@ -176,41 +204,51 @@ mod test {
     // lock_wait() tests
 
     #[test]
-    fn lock_invalid_filenames() {
-        for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
-            assert_eq!(Lock::create_file_and_lock("null\0inside", kind.clone()), 
-                       Err(Error::InvalidFilename));
-            assert_eq!(Lock::create_file_and_lock("", kind.clone()), 
-                       Err(Error::Errno(libc::consts::os::posix88::ENOENT)));
+    fn invalid_fd() {
+        for fd in &[-1 as RawFd, 40125] {
+            for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
+                assert_eq!(Lock::new(*fd).lock(kind.clone()), 
+                           Err(Error::Errno(libc::consts::os::posix88::EBADF)));
+            }
+
+            assert_eq!(Lock::new(*fd).unlock(), 
+                       Err(Error::Errno(libc::consts::os::posix88::EBADF)));
         }
     }
 
     #[test]
     fn lock_ok() {
+        let tmp = TempFile::new("file-lock-test");
         for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
-            assert!(Lock::create_file_and_lock("/tmp/file-lock-test", kind.clone()).is_ok());
+            assert_eq!(Lock::new(tmp.fd()).lock(kind.clone()), Ok(()));
         }
     }
 
     #[test]
     fn unlock_error() {
+        let tmp = TempFile::new("file-lock-test");
         for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
-            let l1 = Lock::create_file_and_lock("/tmp/file-lock-test", kind.clone());
-            let l2 = Lock::create_file_and_lock("/tmp/file-lock-test", kind.clone());
-        
-            assert!(l1.is_ok());
+            assert_eq!(Lock::new(tmp.fd()).lock(kind.clone()), Ok(()));
+
             // fcntl() will only allow us to hold a single lock on a file at a time
             // so this test can't work :(
-            assert!(l2.is_ok());
+            assert_eq!(Lock::new(tmp.fd()).lock(kind.clone()), Ok(()));
+
+
+            // unlock without prior lock 
+            assert_eq!(Lock::new(tmp.fd()).unlock(), Ok(()));
         }
     }
     
     #[test]
     fn unlock_ok() {
+        let tmp = TempFile::new("file-lock-test");
         for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
-            let l = Lock::create_file_and_lock("/tmp/file-lock-test", kind.clone()).unwrap();
-            assert!(l.unlock().is_ok());
-            assert_eq!(l.unlock(), Err(Error::Errno(libc::consts::os::posix88::EBADF)));
+            let l = Lock::new(tmp.fd());
+
+            assert_eq!(l.lock(kind.clone()), Ok(()));
+            assert_eq!(l.unlock(), Ok(()));
+            assert!(l.unlock().is_ok(), "extra unlocks are fine");
         }
     }
 }

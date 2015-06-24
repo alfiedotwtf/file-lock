@@ -18,5 +18,8 @@ name = "file_lock"
 [dependencies]
 libc = "*"
 
+[dev-dependencies]
+tempdir = "*"
+
 [build-dependencies]
 gcc = "*"
