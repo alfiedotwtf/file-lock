@@ -3,14 +3,16 @@
 #include <stdio.h>
 #include <unistd.h>
 
-int c_lock(int fd, int should_block) {
+int c_lock(int fd, int should_block, int is_write_lock) {
   if (fd < 0) {
     return EBADF;
   }
 
   struct flock fl;
 
-  fl.l_type   = F_WRLCK;
+  fl.l_type   = is_write_lock 
+                ? F_WRLCK 
+                : F_RDLCK;
   fl.l_whence = SEEK_SET;
   fl.l_start  = 0;
   fl.l_len    = 0;

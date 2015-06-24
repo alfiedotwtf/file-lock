@@ -20,7 +20,7 @@
 //! fn main() {
 //!     let f = tempfile::TempFile::new().unwrap();
 //!
-//!     match Lock::new(f.as_raw_fd()).lock(LockKind::NonBlocking) {
+//!     match Lock::new(f.as_raw_fd()).lock(LockKind::NonBlocking, AccessMode::Write) {
 //!         Ok(_)  => println!("Got lock"),
 //!         Err(Error::Errno(i))
 //!               => println!("Got filesystem error {}", i),
@@ -58,7 +58,7 @@ use std::os::unix::io::RawFd;
 /// fn main() {
 ///     let f = tempfile::TempFile::new().unwrap();
 ///
-///     match Lock::new(f.as_raw_fd()).lock(LockKind::NonBlocking) {
+///     match Lock::new(f.as_raw_fd()).lock(LockKind::NonBlocking, AccessMode::Write) {
 ///         Ok(_)  => {
 ///             // we have a lock, which is discarded automatically. Otherwise you could call
 ///             // `unlock()` to make it explicit
@@ -91,6 +91,22 @@ pub enum LockKind {
     Blocking,
 }
 
+/// Represents a file access mode, e.g. read or write
+#[derive(Clone, Debug)]
+pub enum AccessMode {
+    Read,
+    Write
+}
+
+impl Into<i32> for AccessMode {
+    fn into(self) -> i32 {
+        match self {
+            AccessMode::Read => 0,
+            AccessMode::Write => 1,
+        }
+    }
+}
+
 impl Into<i32> for LockKind {
     fn into(self) -> i32 {
         match self {
@@ -101,7 +117,7 @@ impl Into<i32> for LockKind {
 }
 
 extern {
-  fn c_lock(fd: i32, should_block: i32) -> i32;
+  fn c_lock(fd: i32, should_block: i32, is_write_lock: i32) -> i32;
   fn c_unlock(fd: i32) -> i32;
 }
 
@@ -118,8 +134,8 @@ impl Lock {
     /// Obtain a write-lock the file-descriptor
     /// 
     /// For an example, please see the documentation of the [`Lock`](struct.Lock.html) structure.
-    pub fn lock(&self, kind: LockKind) -> Result<(), Error> {
-        let errno = unsafe { c_lock(self.fd, kind.into()) };
+    pub fn lock(&self, kind: LockKind, mode: AccessMode) -> Result<(), Error> {
+        let errno = unsafe { c_lock(self.fd, kind.into(), mode.into()) };
 
         return match errno {
            0 => Ok(()),
@@ -206,7 +222,7 @@ mod test {
     fn invalid_fd() {
         for fd in &[-1 as RawFd, 40125] {
             for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
-                assert_eq!(Lock::new(*fd).lock(kind.clone()), 
+                assert_eq!(Lock::new(*fd).lock(kind.clone(), AccessMode::Write), 
                            Err(Error::Errno(libc::consts::os::posix88::EBADF)));
             }
 
@@ -219,7 +235,7 @@ mod test {
     fn lock_ok() {
         let tmp = TempFile::new("file-lock-test");
         for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
-            assert_eq!(Lock::new(tmp.fd()).lock(kind.clone()), Ok(()));
+            assert_eq!(Lock::new(tmp.fd()).lock(kind.clone(), AccessMode::Write), Ok(()));
         }
     }
 
@@ -227,11 +243,11 @@ mod test {
     fn unlock_error() {
         let tmp = TempFile::new("file-lock-test");
         for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
-            assert_eq!(Lock::new(tmp.fd()).lock(kind.clone()), Ok(()));
+            assert_eq!(Lock::new(tmp.fd()).lock(kind.clone(), AccessMode::Write), Ok(()));
 
             // fcntl() will only allow us to hold a single lock on a file at a time
             // so this test can't work :(
-            assert_eq!(Lock::new(tmp.fd()).lock(kind.clone()), Ok(()));
+            assert_eq!(Lock::new(tmp.fd()).lock(kind.clone(), AccessMode::Write), Ok(()));
 
 
             // unlock without prior lock 
@@ -245,7 +261,7 @@ mod test {
         for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
             let l = Lock::new(tmp.fd());
 
-            assert_eq!(l.lock(kind.clone()), Ok(()));
+            assert_eq!(l.lock(kind.clone(), AccessMode::Write), Ok(()));
             assert_eq!(l.unlock(), Ok(()));
             assert!(l.unlock().is_ok(), "extra unlocks are fine");
         }
