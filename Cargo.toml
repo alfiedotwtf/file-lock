@@ -12,6 +12,11 @@ license = "MIT"
 
 build = "build.rs"
 
+[features]
+default = []
+# to satisfy travis-cargo when used with nightly compiler
+unstable = []
+
 [lib]
 name = "file_lock"
 
