@@ -2,223 +2,171 @@
 
 //! File locking via POSIX advisory record locks.
 //!
-//! This crate provides the facility to lock and unlock a file following the
-//! advisory record lock scheme as specified by UNIX IEEE Std 1003.1-2001
+//! This crate provides the facility to obtain a write-lock and unlock a file 
+//! following the advisory record lock scheme as specified by UNIX IEEE Std 1003.1-2001
 //! (POSIX.1) via `fcntl()`.
 //!
 //! # Examples
 //!
+//! Please note that the examples use `tempfile` merely to quickly create a file
+//! which is removed automatically. In the common case, you would want to lock
+//! a file which is known to multiple processes.
+//!
 //! ```
 //! extern crate file_lock;
+//! extern crate tempfile;
 //!
 //! use file_lock::*;
-//! use file_lock::Error::*;
+//! use std::os::unix::io::AsRawFd;
 //!
 //! fn main() {
-//!     let l = lock("/tmp/file-lock-test");
+//!     let f = tempfile::TempFile::new().unwrap();
 //!
-//!     match l {
+//!     match Lock::new(f.as_raw_fd()).lock(LockKind::NonBlocking, AccessMode::Write) {
 //!         Ok(_)  => println!("Got lock"),
-//!         Err(e) => match e {
-//!             InvalidFilename => println!("Invalid filename"),
-//!             Errno(i)        => println!("Got filesystem error {}", i),
-//!         }
+//!         Err(Error::Errno(i))
+//!               => println!("Got filesystem error {}", i),
 //!     }
 //! }
 //! ```
 
 extern crate libc;
 
-use std::ffi::CString;
+use std::os::unix::io::RawFd;
 
-/// Represents a lock on a file.
+/// Represents a write lock on a file.
+///
+/// The `lock(LockKind)` method tries to obtain a write-lock on the
+/// file identified by a file-descriptor. 
+/// One can obtain different kinds of write-locks.
+///
+/// * LockKind::NonBlocking - immediately return with an `Errno` error.
+/// * LockKind::Blocking - waits (i.e. blocks the running thread) for the current
+/// owner of the lock to relinquish the lock.
+///
+/// # Example
+///
+/// Please note that the examples use `tempfile` merely to quickly create a file
+/// which is removed automatically. In the common case, you would want to lock
+/// a file which is known to multiple processes.
+///
+/// ```
+/// extern crate file_lock;
+/// extern crate tempfile;
+///
+/// use file_lock::*;
+/// use std::os::unix::io::AsRawFd;
+///
+/// fn main() {
+///     let f = tempfile::TempFile::new().unwrap();
+///
+///     match Lock::new(f.as_raw_fd()).lock(LockKind::NonBlocking, AccessMode::Write) {
+///         Ok(_)  => {
+///             // we have a lock, which is discarded automatically. Otherwise you could call
+///             // `unlock()` to make it explicit
+///             // 
+///             println!("Got lock");
+///         },
+///         Err(Error::Errno(i))
+///               => println!("Got filesystem error {}", i),
+///     }
+/// }
+/// ```
 #[derive(Debug, Eq, PartialEq)]
 pub struct Lock {
-  _fd: i32,
+  fd: RawFd,
 }
 
 /// Represents the error that occurred while trying to lock or unlock a file.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Error {
-  /// caused when the filename is invalid as it contains a null byte.
-  InvalidFilename,
   /// caused when the error occurred at the filesystem layer (see
   /// [errno](https://crates.io/crates/errno)).
   Errno(i32),
 }
 
-#[repr(C)]
-struct c_result {
-  _fd:    i32,
-  _errno: i32,
+/// Represents the kind of lock (e.g. *blocking*, *non-blocking*)
+#[derive(Clone, Debug)]
+pub enum LockKind {
+    /// Indicates a lock file which 
+    NonBlocking,
+    Blocking,
 }
 
-macro_rules! _create_lock_type {
-  ($lock_type:ident, $c_lock_type:ident) => {
-    extern {
-        fn $c_lock_type(filename: *const libc::c_char) -> c_result;
-    }
+/// Represents a file access mode, e.g. read or write
+#[derive(Clone, Debug)]
+pub enum AccessMode {
+    Read,
+    Write
+}
 
-    /// Locks the specified file.
-    ///
-    /// The `lock()` and `lock_wait()` functions try to perform a lock on the
-    /// specified file. The difference between the two is what they do when
-    /// another process has a lock on the same file:
-    ///
-    /// * lock() - immediately return with an `Errno` error.
-    /// * lock_wait() - waits (i.e. blocks the running thread) for the current
-    /// owner of the lock to relinquish the lock.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// extern crate file_lock;
-    ///
-    /// use file_lock::*;
-    /// use file_lock::Error::*;
-    ///
-    /// fn main() {
-    ///     let l = lock("/tmp/file-lock-test");
-    ///
-    ///     match l {
-    ///         Ok(_)  => println!("Got lock"),
-    ///         Err(e) => match e {
-    ///             InvalidFilename => println!("Invalid filename"),
-    ///             Errno(i)        => println!("Got filesystem error {}", i),
-    ///         }
-    ///     }
-    /// }
-    /// ```
-    pub fn $lock_type(filename: &str) -> Result<Lock, Error> {
-        match CString::new(filename) {
-            Err(_) => Err(Error::InvalidFilename),
-            Ok(raw_filename) => {
-                let my_result = unsafe { $c_lock_type(raw_filename.as_ptr()) };
-
-                return match my_result._errno {
-                   0 => Ok(Lock{_fd: my_result._fd}),
-                   _ => Err(Error::Errno(my_result._errno)),
-                }
-            }
+impl Into<i32> for AccessMode {
+    fn into(self) -> i32 {
+        match self {
+            AccessMode::Read => 0,
+            AccessMode::Write => 1,
         }
     }
-  };
 }
 
-_create_lock_type!(lock, c_lock);
-_create_lock_type!(lock_wait, c_lock_wait);
+impl Into<i32> for LockKind {
+    fn into(self) -> i32 {
+        match self {
+            LockKind::NonBlocking => 0,
+            LockKind::Blocking => 1,
+        }
+    }
+}
 
 extern {
-  fn c_unlock(_fd: i32) -> c_result;
+  fn c_lock(fd: i32, should_block: i32, is_write_lock: i32) -> i32;
+  fn c_unlock(fd: i32) -> i32;
 }
 
-/// Unlocks the file held by `Lock`.
-///
-/// In reality, you shouldn't need to call `unlock()`. As `Lock` implements
-/// the `Drop` trait, once the `Lock` reference goes out of scope, `unlock()`
-/// will be called automatically.
-///
-/// # Example
-///
-/// ```
-/// extern crate file_lock;
-///
-/// use file_lock::*;
-///
-/// fn main() {
-///     let l = lock("/tmp/file-lock-test").unwrap();
-///
-///     if unlock(&l).is_ok() {
-///         println!("Unlocked!");
-///     }
-/// }
-/// ```
-pub fn unlock(lock: &Lock) -> Result<(), Error> {
-  unsafe {
-    let my_result = c_unlock(lock._fd);
-
-    return match my_result._errno {
-       0 => Ok(()),
-       _ => Err(Error::Errno(my_result._errno)),
+impl Lock {
+    /// Create a new lock instance from the given file descriptor `fd`.
+    /// 
+    /// You will have to call `lock(...)` on it to acquire any lock.
+    pub fn new(fd: RawFd) -> Lock {
+        Lock {
+            fd:   fd,
+        }
     }
-  }
+
+    /// Obtain a write-lock the file-descriptor
+    /// 
+    /// For an example, please see the documentation of the [`Lock`](struct.Lock.html) structure.
+    pub fn lock(&self, kind: LockKind, mode: AccessMode) -> Result<(), Error> {
+        let errno = unsafe { c_lock(self.fd, kind.into(), mode.into()) };
+
+        return match errno {
+           0 => Ok(()),
+           _ => Err(Error::Errno(errno)),
+        }
+    }
+
+    /// Unlocks the file held by `Lock`.
+    ///
+    /// In reality, you shouldn't need to call `unlock()`. As `Lock` implements
+    /// the `Drop` trait, once the `Lock` reference goes out of scope, `unlock()`
+    /// will be called automatically.
+    ///
+    /// For an example, please see the documentation of the [`Lock`](struct.Lock.html) structure.
+    pub fn unlock(&self) -> Result<(), Error> {
+      unsafe {
+        let errno = c_unlock(self.fd);
+
+        return match errno {
+           0 => Ok(()),
+           _ => Err(Error::Errno(errno)),
+        }
+      }
+    }
 }
 
 #[allow(unused_must_use)]
 impl Drop for Lock {
   fn drop(&mut self) {
-    unlock(self);
+    self.unlock().ok();
   }
-}
-
-#[cfg(test)]
-mod test {
-    use libc;
-    
-    use super::*;
-    use super::Error::*;
-
-    //
-    // unfortunately we can't abstract this out for lock() and lock_wait()
-    // into a macro because string concat doesn't exist
-    //
-
-    // lock_wait() tests
-
-    #[test]
-    fn lock_invalid_filename() {
-        assert_eq!(lock("null\0inside"), Err(Error::InvalidFilename));
-    }
-
-    #[test]
-    fn lock_errno() {
-        assert_eq!(lock(""), Err(Error::Errno(libc::consts::os::posix88::ENOENT)));
-    }
-
-    #[test]
-    fn lock_ok() {
-        assert!(lock("/tmp/file-lock-test").is_ok());
-    }
-
-    // lock_wait() tests
-
-    #[test]
-    fn lock_wait_invalid_filename() {
-        assert_eq!(lock_wait("null\0inside"), Err(Error::InvalidFilename));
-    }
-
-    #[test]
-    fn lock_wait_errno() {
-        assert_eq!(lock_wait(""), Err(Error::Errno(libc::consts::os::posix88::ENOENT)));
-    }
-
-    #[test]
-    fn lock_wait_ok() {
-        assert!(lock_wait("/tmp/file-lock-test").is_ok());
-    }
-
-    // unlock()
-
-    
-    // fcntl() will only allow us to hold a single lock on a file at a time
-    // so this test can't work :(
-    
-    #[test]
-    #[should_panic]
-    fn unlock_error() {
-        let l1 = lock("/tmp/file-lock-test");
-        let l2 = lock("/tmp/file-lock-test");
-    
-        assert!(l1.is_ok());
-        assert!(l2.is_err());
-    }
-    
-
-    #[test]
-    fn unlock_ok() {
-        let l        = lock_wait("/tmp/file-lock-test");
-        let unlocked = l.unwrap();
-
-        assert!(unlock(&unlocked).is_ok(), true);
-    }
 }
