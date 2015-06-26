@@ -32,10 +32,10 @@
 
 extern crate libc;
 
-mod lock;
-mod file_lock;
+pub mod lock;
+pub mod flock;
 mod util;
 
 pub use lock::{Lock, LockKind, AccessMode, Error};
-pub use file_lock::FileLock;
+pub use flock::FileLock;
 pub use util::Remover;

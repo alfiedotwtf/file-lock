@@ -67,7 +67,7 @@ pub enum LockKind {
 }
 
 /// Represents a file access mode, e.g. read or write
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AccessMode {
     Read,
     Write
@@ -91,6 +91,39 @@ impl Into<i32> for LockKind {
     }
 }
 
+
+
+/// Obtain a write-lock the file-descriptor
+/// 
+/// For an example, please see the documentation of the [`Lock`](struct.Lock.html) structure.
+pub fn lock(fd: RawFd, kind: LockKind, mode: AccessMode) -> Result<(), Error> {
+    let errno = unsafe { c_lock(fd, kind.into(), mode.into()) };
+
+    return match errno {
+       0 => Ok(()),
+       _ => Err(Error::Errno(errno)),
+    }
+}
+
+/// Unlocks the file held by `Lock`.
+///
+/// In reality, you shouldn't need to call `unlock()`. As `Lock` implements
+/// the `Drop` trait, once the `Lock` reference goes out of scope, `unlock()`
+/// will be called automatically.
+///
+/// For an example, please see the documentation of the [`Lock`](struct.Lock.html) structure.
+pub fn unlock(fd: RawFd) -> Result<(), Error> {
+  unsafe {
+    let errno = c_unlock(fd);
+
+    return match errno {
+       0 => Ok(()),
+       _ => Err(Error::Errno(errno)),
+    }
+  }
+}
+
+
 impl Lock {
     /// Create a new lock instance from the given file descriptor `fd`.
     /// 
@@ -105,12 +138,7 @@ impl Lock {
     /// 
     /// For an example, please see the documentation of the [`Lock`](struct.Lock.html) structure.
     pub fn lock(&self, kind: LockKind, mode: AccessMode) -> Result<(), Error> {
-        let errno = unsafe { c_lock(self.fd, kind.into(), mode.into()) };
-
-        return match errno {
-           0 => Ok(()),
-           _ => Err(Error::Errno(errno)),
-        }
+        lock(self.fd, kind.clone(), mode.clone())
     }
 
     /// Unlocks the file held by `Lock`.
@@ -121,14 +149,7 @@ impl Lock {
     ///
     /// For an example, please see the documentation of the [`Lock`](struct.Lock.html) structure.
     pub fn unlock(&self) -> Result<(), Error> {
-      unsafe {
-        let errno = c_unlock(self.fd);
-
-        return match errno {
-           0 => Ok(()),
-           _ => Err(Error::Errno(errno)),
-        }
-      }
+        unlock(self.fd)
     }
 }
 
