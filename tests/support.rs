@@ -1,18 +1,37 @@
 #![allow(dead_code)]
+extern crate file_lock;
 
 use std::env;
+use std::borrow::Borrow;
 use std::path::{PathBuf, Path};
 use std::os::unix::io::{RawFd, AsRawFd};
-use std::fs::{File, OpenOptions, remove_file};
+use std::fs::{File, OpenOptions};
+
+use file_lock::Remover;
 
 
-pub struct TempFile {
+pub struct TempFile<P: Borrow<PathBuf>> {
     inner: File,
-    path: PathBuf
+    remover: Remover<P>
 }
 
-impl TempFile {
-    pub fn new(name: &str) -> TempFile {
+impl<P> TempFile<P> where P: Borrow<PathBuf> {
+
+    pub fn fd(&self) -> RawFd {
+        self.inner.as_raw_fd()
+    }
+
+    pub fn path(&self) -> &Path {
+        self.remover.path.borrow()
+    }
+
+    pub fn stream(&mut self) -> &mut File {
+        &mut self.inner
+    }
+}
+
+impl TempFile<PathBuf> {
+    pub fn new(name: &str) -> TempFile<PathBuf> {
         let mut path = env::temp_dir();
         path.push(name);
 
@@ -21,25 +40,7 @@ impl TempFile {
                                .create(true)
                                .write(true)
                                .open(&path).unwrap(),
-            path: path,
+            remover: Remover { path: path },
         }
-    }
-
-    pub fn fd(&self) -> RawFd {
-        self.inner.as_raw_fd()
-    }
-
-    pub fn path(&self) -> &Path {
-        self.path.as_ref()
-    }
-
-    pub fn stream(&mut self) -> &mut File {
-        &mut self.inner
-    }
-}
-
-impl Drop for TempFile {
-    fn drop(&mut self) {
-        remove_file(&self.path).ok();
     }
 }
