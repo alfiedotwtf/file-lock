@@ -85,6 +85,10 @@ impl FileLock {
     pub fn path(&self) -> &PathBuf {
         &self.path
     }
+
+    pub fn file(&mut self) -> Option<&mut File> {
+        self.file.as_mut()
+    }
 }
 
 impl Drop for FileLock {

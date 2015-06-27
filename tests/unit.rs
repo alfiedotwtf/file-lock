@@ -68,20 +68,23 @@ fn unlock_ok() {
 
 #[test]
 fn file_lock_create_file() {
+    use std::io::Write;
+
     let mut path = env::temp_dir();
     path.push("file-lock-creation-test");
-    let p = path.clone();
 
     let _r = {
         let mut fl = FileLock::new(path.clone(), AccessMode::Write);
-        let r = Remover { path: path };
+        let r = Remover { path: fl.path().clone() };
         fl.lock().unwrap();
 
-        assert!(fs::metadata(&p).is_ok(), "File should have been created");
+        fl.file().unwrap().write(b"hello").unwrap();
+
+        assert!(fs::metadata(&path).is_ok(), "File should have been created");
         fl.unlock().unwrap();
-        assert!(fs::metadata(&p).is_ok(), "File is still there after unlock");
+        assert!(fs::metadata(&path).is_ok(), "File is still there after unlock");
         r
     };
 
-    assert!(fs::metadata(&p).is_ok(), "File is still there after dropping FileLock instance");
+    assert!(fs::metadata(&path).is_ok(), "File is still there after dropping FileLock instance");
 }
