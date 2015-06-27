@@ -30,7 +30,7 @@ fn invalid_fd() {
 
 #[test]
 fn lock_ok() {
-    let tmp = TempFile::new("file-lock-test");
+    let tmp = TempFile::new("file-lock-test", AccessMode::Write);
     for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
         assert_eq!(Lock::new(tmp.fd()).lock(kind.clone(), AccessMode::Write), Ok(()));
     }
@@ -38,7 +38,7 @@ fn lock_ok() {
 
 #[test]
 fn unlock_error() {
-    let tmp = TempFile::new("file-lock-test");
+    let tmp = TempFile::new("file-lock-test", AccessMode::Write);
     for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
         assert_eq!(Lock::new(tmp.fd()).lock(kind.clone(), AccessMode::Write), Ok(()));
 
@@ -54,7 +54,7 @@ fn unlock_error() {
 
 #[test]
 fn unlock_ok() {
-    let tmp = TempFile::new("file-lock-test");
+    let tmp = TempFile::new("file-lock-test", AccessMode::Write);
     for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
         let l = Lock::new(tmp.fd());
 

@@ -1,8 +1,9 @@
 use std::os::unix::io::RawFd;
+use std::str::FromStr;
 
 extern {
-  fn c_lock(fd: i32, should_block: i32, is_write_lock: i32) -> i32;
-  fn c_unlock(fd: i32) -> i32;
+    fn c_lock(fd: i32, should_block: i32, is_write_lock: i32) -> i32;
+    fn c_unlock(fd: i32) -> i32;
 }
 
 
@@ -46,20 +47,20 @@ extern {
 /// ```
 #[derive(Debug, Eq, PartialEq)]
 pub struct Lock {
-  fd: RawFd,
+    fd: RawFd,
 }
 
 
 /// Represents the error that occurred while trying to lock or unlock a file.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Error {
-  /// caused when the error occurred at the filesystem layer (see
-  /// [errno](https://crates.io/crates/errno)).
-  Errno(i32),
+    /// caused when the error occurred at the filesystem layer (see
+    /// [errno](https://crates.io/crates/errno)).
+    Errno(i32),
 }
 
 /// Represents the kind of lock (e.g. *blocking*, *non-blocking*)
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LockKind {
     /// Indicates a lock file which 
     NonBlocking,
@@ -71,6 +72,48 @@ pub enum LockKind {
 pub enum AccessMode {
     Read,
     Write
+}
+
+impl AsRef<str> for LockKind {
+    fn as_ref(&self) -> &str {
+        match *self {
+            LockKind::NonBlocking => "nowait",
+            LockKind::Blocking => "wait",
+        }
+    }
+}
+
+impl FromStr for LockKind {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            "nowait" => Ok(LockKind::NonBlocking),
+            "wait" => Ok(LockKind::Blocking),
+            _ => Err(format!("Unknown LockKind: {}", input)),
+        }
+    }
+}
+
+impl AsRef<str> for AccessMode {
+    fn as_ref(&self) -> &str {
+        match *self {
+            AccessMode::Read => "read",
+            AccessMode::Write => "write",
+        }
+    }
+}
+
+impl FromStr for AccessMode {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            "read" => Ok(AccessMode::Read),
+            "write" => Ok(AccessMode::Write),
+            _ => Err(format!("Unknown AccessMode: {}", input))
+        }
+    }
 }
 
 impl Into<i32> for AccessMode {
@@ -155,7 +198,7 @@ impl Lock {
 
 #[allow(unused_must_use)]
 impl Drop for Lock {
-  fn drop(&mut self) {
-    self.unlock().ok();
-  }
+    fn drop(&mut self) {
+        self.unlock().ok();
+    }
 }

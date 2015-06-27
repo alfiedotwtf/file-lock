@@ -34,8 +34,6 @@ extern crate libc;
 
 pub mod lock;
 pub mod flock;
-mod util;
 
 pub use lock::{Lock, LockKind, AccessMode, Error};
 pub use flock::FileLock;
-pub use util::Remover;

@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::fs::{File, remove_file};
+use std::fs::File;
 use std::cell::RefCell;
 use std::io;
 use std::fs::OpenOptions;
@@ -7,6 +7,7 @@ use std::os::unix::io::AsRawFd;
 
 use lock::{self, LockKind, AccessMode, lock, unlock};
 
+#[derive(Debug)]
 pub enum Error {
     LockError(lock::Error),
     IoError(io::Error),
@@ -47,7 +48,7 @@ impl FileLock {
         }
     }
 
-    fn opened_file<'a>(&'a self) -> Result<&'a RefCell<Option<File>>, io::Error> {
+    fn opened_file<'a>(&self) -> Result<&RefCell<Option<File>>, io::Error> {
         match *self.file.borrow() {
             Some(_) => Ok(&self.file),
             None => {
@@ -62,17 +63,18 @@ impl FileLock {
         }
     }
 
-
-    pub fn lock(&self) -> Result<(), Error> {
+    pub fn any_lock(&self, kind: LockKind) -> Result<(), Error> {
         Ok(try!(lock(try!(self.opened_file()).borrow().as_ref().unwrap().as_raw_fd(),
-                     LockKind::Blocking, 
+                     kind, 
                      self.mode.clone())))
     }
 
+    pub fn lock(&self) -> Result<(), Error> {
+        self.any_lock(LockKind::Blocking)
+    }
+
     pub fn try_lock(&self) -> Result<(), Error> {
-        Ok(try!(lock(try!(self.opened_file()).borrow().as_ref().unwrap().as_raw_fd(),
-                     LockKind::NonBlocking, 
-                     self.mode.clone())))
+        self.any_lock(LockKind::NonBlocking)
     }
 
     pub fn unlock(&self) -> Result<(), Error> {
@@ -86,6 +88,6 @@ impl FileLock {
 
 impl Drop for FileLock {
     fn drop(&mut self) {
-        remove_file(&self.path).ok();
+        self.unlock().ok();
     }
 }

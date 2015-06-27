@@ -11,7 +11,7 @@ use file_lock::*;
 use support::TempFile;
 
 
-const ENV_LOCK_FILE: &'static str = "FILE_LOCK_TEST_LOCK_FILE_PATH";
+const ENV_LOCK_FILE: &'static str = "LOCK_TEST_LOCK_FILE_PATH";
 
 #[test]
 fn inter_process_lock() {
@@ -27,7 +27,7 @@ fn inter_process_lock() {
         },
         Err(_) => {
             // we are the driver
-            let t = TempFile::new("inter-process-operation");
+            let t = TempFile::new("inter-process-write-lock-operation", AccessMode::Write);
 
             let exec_self_status = || -> ExitStatus {
                 Command::new(env::current_exe().unwrap())
