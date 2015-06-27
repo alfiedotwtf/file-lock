@@ -49,18 +49,17 @@ impl FileLock {
     }
 
     fn opened_file<'a>(&self) -> Result<&RefCell<Option<File>>, io::Error> {
-        match *self.file.borrow() {
-            Some(_) => Ok(&self.file),
-            None => {
-                let mut b = self.file.borrow_mut();
-                *b = Some(try!(OpenOptions::new()
-                                           .create(true)
-                                           .read(self.mode == AccessMode::Read)
-                                           .write(self.mode == AccessMode::Write)
-                                           .open(&self.path)));
-                Ok(&self.file)
-            }
+        if let Some(_) = *self.file.borrow() {
+            return Ok(&self.file)
         }
+
+        let mut b = self.file.borrow_mut();
+        *b = Some(try!(OpenOptions::new()
+                                   .create(true)
+                                   .read(self.mode == AccessMode::Read)
+                                   .write(self.mode == AccessMode::Write)
+                                   .open(&self.path)));
+        Ok(&self.file)
     }
 
     pub fn any_lock(&self, kind: LockKind) -> Result<(), Error> {
