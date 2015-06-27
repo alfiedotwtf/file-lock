@@ -4,8 +4,10 @@ extern crate libc;
 mod support;
 
 use std::os::unix::io::RawFd;
+use std::env;
+use std::fs;
 
-use support::TempFile;
+use support::{TempFile, Remover};
 use file_lock::*;
 
 //
@@ -62,4 +64,24 @@ fn unlock_ok() {
         assert_eq!(l.unlock(), Ok(()));
         assert!(l.unlock().is_ok(), "extra unlocks are fine");
     }
+}
+
+#[test]
+fn file_lock_create_file() {
+    let mut path = env::temp_dir();
+    path.push("file-lock-creation-test");
+    let p = path.clone();
+
+    let _r = {
+        let fl = FileLock::new(path.clone(), AccessMode::Write);
+        let r = Remover { path: path };
+        fl.lock().unwrap();
+
+        assert!(fs::metadata(&p).is_ok(), "File should have been created");
+        fl.unlock().unwrap();
+        assert!(fs::metadata(&p).is_ok(), "File is still there after unlock");
+        r
+    };
+
+    assert!(fs::metadata(&p).is_ok(), "File is still there after dropping FileLock instance");
 }

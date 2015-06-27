@@ -83,6 +83,10 @@ impl FileLock {
                                       "unlock() called before lock() or try_lock()").into())
         }
     }
+
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
 }
 
 impl Drop for FileLock {
