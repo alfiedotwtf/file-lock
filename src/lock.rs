@@ -1,5 +1,7 @@
 use std::os::unix::io::RawFd;
 use std::str::FromStr;
+use std::fmt;
+use std::error::Error as ErrorTrait;
 
 extern {
     fn c_lock(fd: i32, should_block: i32, is_write_lock: i32) -> i32;
@@ -59,6 +61,24 @@ pub enum Error {
     Errno(i32),
 }
 
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match *self {
+            Error::Errno(ref errno)
+                => write!(f, "Lock operation failed: {}", errno)
+        }
+    }
+}
+
+impl ErrorTrait for Error {
+    fn description(&self) -> &str {
+        match *self {
+            Error::Errno(_) 
+                => "Failed to acuire file lock",
+        }
+    }
+}
+
 /// Represents the kind of lock (e.g. *blocking*, *non-blocking*)
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LockKind {
@@ -74,6 +94,21 @@ pub enum AccessMode {
     Write
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseError(String);
+
+impl ErrorTrait for ParseError {
+    fn description(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        self.0.fmt(f)
+    }
+}
+
 impl AsRef<str> for LockKind {
     fn as_ref(&self) -> &str {
         match *self {
@@ -84,13 +119,13 @@ impl AsRef<str> for LockKind {
 }
 
 impl FromStr for LockKind {
-    type Err = String;
+    type Err = ParseError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input {
             "nowait" => Ok(LockKind::NonBlocking),
             "wait" => Ok(LockKind::Blocking),
-            _ => Err(format!("Unknown LockKind: {}", input)),
+            _ => Err(ParseError(format!("Unknown LockKind: {}", input))),
         }
     }
 }
@@ -105,13 +140,13 @@ impl AsRef<str> for AccessMode {
 }
 
 impl FromStr for AccessMode {
-    type Err = String;
+    type Err = ParseError;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input {
             "read" => Ok(AccessMode::Read),
             "write" => Ok(AccessMode::Write),
-            _ => Err(format!("Unknown AccessMode: {}", input))
+            _ => Err(ParseError(format!("Unknown AccessMode: {}", input)))
         }
     }
 }

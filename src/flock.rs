@@ -2,21 +2,41 @@ use std::path::PathBuf;
 use std::fs::File;
 use std::io;
 use std::fs::OpenOptions;
-use std::os::unix::io::AsRawFd;
+use std::os::unix::io::{RawFd, AsRawFd};
+use std::fmt;
+use std::error::Error as ErrorTrait;
 
 use lock::{self, LockKind, AccessMode, lock, unlock};
 
 #[derive(Debug)]
 pub enum Error {
     LockError(lock::Error),
-    IoError(io::Error),
+    IoError(PathBuf, io::Error),
 }
 
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Self {
-        Error::IoError(err)
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        match *self {
+            Error::IoError(ref path, ref err) 
+                => write!(f, "Couldn't open lock file at '{}': {}", path.display(), err),
+            Error::LockError(ref err)
+                => err.fmt(f),
+        }
     }
 }
+
+impl ErrorTrait for Error {
+    fn description(&self) -> &str {
+        match *self {
+            Error::IoError(_, _) 
+                => "Could not open or create the file to lock",
+            Error::LockError(_)
+                => "Failed to obtain a file lock"
+        }
+    }
+}
+
+unsafe impl Send for Error {}
 
 impl From<lock::Error> for Error {
     fn from(err: lock::Error) -> Self {
@@ -47,23 +67,31 @@ impl FileLock {
         }
     }
 
-    fn opened_file(&mut self) -> Result<&File, io::Error> {
+    fn opened_file_fd(&mut self) -> Result<RawFd, io::Error> {
         if let Some(ref file) = self.file {
-            return Ok(file)
+            return Ok(file.as_raw_fd())
         }
 
-        self.file = Some(try!(OpenOptions::new()
+        let (raw_fd, file) = match OpenOptions::new()
                                    .create(true)
                                    .read(self.mode == AccessMode::Read)
                                    .write(self.mode == AccessMode::Write)
-                                   .open(&self.path)));
-        Ok(self.file.as_ref().unwrap())
+                                   .open(&self.path) {
+            Err(io_err) => return Err(io_err),
+            Ok(file) => (file.as_raw_fd(), Some(file))
+        };
+
+        self.file = file;
+        Ok(raw_fd)
     }
 
     pub fn any_lock(&mut self, kind: LockKind) -> Result<(), Error> {
-        Ok(try!(lock(try!(self.opened_file()).as_raw_fd(),
-                     kind, 
-                     self.mode.clone())))
+        let fd = match self.opened_file_fd() {
+            Ok(fd) => fd,
+            Err(io_err) => return Err(Error::IoError(self.path.clone(), io_err))
+        };
+
+        Ok(try!(lock(fd, kind, self.mode.clone())))
     }
 
     pub fn lock(&mut self) -> Result<(), Error> {
@@ -77,8 +105,9 @@ impl FileLock {
     pub fn unlock(&mut self) -> Result<(), Error> {
         match self.file {
             Some(ref file) => Ok(try!(unlock(file.as_raw_fd()))),
-            None => Err(io::Error::new(io::ErrorKind::NotFound, 
-                                      "unlock() called before lock() or try_lock()").into())
+            None => Err(Error::IoError(self.path.clone(),
+                                       io::Error::new(io::ErrorKind::NotFound, 
+                                       "unlock() called before lock() or try_lock()").into()))
         }
     }
 
