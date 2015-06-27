@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 use std::fs::File;
-use std::cell::RefCell;
 use std::io;
 use std::fs::OpenOptions;
 use std::os::unix::io::AsRawFd;
@@ -35,7 +34,7 @@ impl From<lock::Error> for Error {
 #[derive(Debug)]
 pub struct FileLock {
     path: PathBuf,
-    file: RefCell<Option<File>>,
+    file: Option<File>,
     mode: AccessMode
 }
 
@@ -43,41 +42,40 @@ impl FileLock {
     pub fn new(path: PathBuf, mode: AccessMode) -> FileLock {
         FileLock {
             path: path,
-            file: RefCell::new(None),
+            file: None,
             mode: mode,
         }
     }
 
-    fn opened_file<'a>(&self) -> Result<&RefCell<Option<File>>, io::Error> {
-        if let Some(_) = *self.file.borrow() {
-            return Ok(&self.file)
+    fn opened_file(&mut self) -> Result<&File, io::Error> {
+        if let Some(ref file) = self.file {
+            return Ok(file)
         }
 
-        let mut b = self.file.borrow_mut();
-        *b = Some(try!(OpenOptions::new()
+        self.file = Some(try!(OpenOptions::new()
                                    .create(true)
                                    .read(self.mode == AccessMode::Read)
                                    .write(self.mode == AccessMode::Write)
                                    .open(&self.path)));
-        Ok(&self.file)
+        Ok(self.file.as_ref().unwrap())
     }
 
-    pub fn any_lock(&self, kind: LockKind) -> Result<(), Error> {
-        Ok(try!(lock(try!(self.opened_file()).borrow().as_ref().unwrap().as_raw_fd(),
+    pub fn any_lock(&mut self, kind: LockKind) -> Result<(), Error> {
+        Ok(try!(lock(try!(self.opened_file()).as_raw_fd(),
                      kind, 
                      self.mode.clone())))
     }
 
-    pub fn lock(&self) -> Result<(), Error> {
+    pub fn lock(&mut self) -> Result<(), Error> {
         self.any_lock(LockKind::Blocking)
     }
 
-    pub fn try_lock(&self) -> Result<(), Error> {
+    pub fn try_lock(&mut self) -> Result<(), Error> {
         self.any_lock(LockKind::NonBlocking)
     }
 
-    pub fn unlock(&self) -> Result<(), Error> {
-        match *self.file.borrow() {
+    pub fn unlock(&mut self) -> Result<(), Error> {
+        match self.file {
             Some(ref file) => Ok(try!(unlock(file.as_raw_fd()))),
             None => Err(io::Error::new(io::ErrorKind::NotFound, 
                                       "unlock() called before lock() or try_lock()").into())

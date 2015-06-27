@@ -73,7 +73,7 @@ fn file_lock_create_file() {
     let p = path.clone();
 
     let _r = {
-        let fl = FileLock::new(path.clone(), AccessMode::Write);
+        let mut fl = FileLock::new(path.clone(), AccessMode::Write);
         let r = Remover { path: path };
         fl.lock().unwrap();
 

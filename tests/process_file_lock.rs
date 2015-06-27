@@ -55,7 +55,7 @@ fn inter_process_file_lock() {
 
             for kind in &[LockKind::NonBlocking, LockKind::Blocking] {
 
-                let fl = FileLock::new(t.path_buf(), AccessMode::Write);
+                let mut fl = FileLock::new(t.path_buf(), AccessMode::Write);
                 fl.try_lock().unwrap();
 
                 match *kind {
@@ -105,7 +105,7 @@ fn inter_process_file_lock() {
             let t = TempFile::new("inter-process-read-file-lock-operation", 
                                   AccessMode::Read);
 
-            let fl = FileLock::new(t.path_buf(), AccessMode::Read);
+            let mut fl = FileLock::new(t.path_buf(), AccessMode::Read);
             fl.try_lock().unwrap();
 
             for kind in &[LockKind::NonBlocking, LockKind::Blocking] {
