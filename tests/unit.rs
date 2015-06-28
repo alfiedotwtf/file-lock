@@ -1,5 +1,6 @@
 extern crate file_lock;
 extern crate libc;
+extern crate errno;
 
 mod support;
 
@@ -22,11 +23,11 @@ fn invalid_fd() {
     for fd in &[-1 as RawFd, 40125] {
         for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
             assert_eq!(Lock::new(*fd).lock(kind.clone(), AccessMode::Write), 
-                       Err(Error::Errno(libc::consts::os::posix88::EBADF)));
+                       Err(Error::Errno(errno::Errno(libc::consts::os::posix88::EBADF))));
         }
 
         assert_eq!(Lock::new(*fd).unlock(), 
-                   Err(Error::Errno(libc::consts::os::posix88::EBADF)));
+                   Err(Error::Errno(errno::Errno(libc::consts::os::posix88::EBADF))));
     }
 }
 

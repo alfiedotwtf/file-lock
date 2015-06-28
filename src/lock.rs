@@ -2,10 +2,12 @@ use std::os::unix::io::RawFd;
 use std::str::FromStr;
 use std::fmt;
 use std::error::Error as ErrorTrait;
+use errno;
+use libc::c_int;
 
 extern {
-    fn c_lock(fd: i32, should_block: i32, is_write_lock: i32) -> i32;
-    fn c_unlock(fd: i32) -> i32;
+    fn c_lock(fd: i32, should_block: i32, is_write_lock: i32) -> c_int;
+    fn c_unlock(fd: i32) -> c_int;
 }
 
 
@@ -58,7 +60,7 @@ pub struct Lock {
 pub enum Error {
     /// caused when the error occurred at the filesystem layer (see
     /// [errno](https://crates.io/crates/errno)).
-    Errno(i32),
+    Errno(errno::Errno),
 }
 
 impl fmt::Display for Error {
@@ -179,7 +181,7 @@ pub fn lock(fd: RawFd, kind: LockKind, mode: AccessMode) -> Result<(), Error> {
 
     return match errno {
        0 => Ok(()),
-       _ => Err(Error::Errno(errno)),
+       _ => Err(Error::Errno(errno::Errno(errno))),
     }
 }
 
@@ -196,7 +198,7 @@ pub fn unlock(fd: RawFd) -> Result<(), Error> {
 
     return match errno {
        0 => Ok(()),
-       _ => Err(Error::Errno(errno)),
+       _ => Err(Error::Errno(errno::Errno(errno))),
     }
   }
 }
