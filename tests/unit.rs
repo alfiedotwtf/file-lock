@@ -4,8 +4,10 @@ extern crate libc;
 mod support;
 
 use std::os::unix::io::RawFd;
+use std::env;
+use std::fs;
 
-use support::TempFile;
+use support::{TempFile, Remover};
 use file_lock::*;
 
 //
@@ -30,7 +32,7 @@ fn invalid_fd() {
 
 #[test]
 fn lock_ok() {
-    let tmp = TempFile::new("file-lock-test");
+    let tmp = TempFile::new("file-lock-test", AccessMode::Write);
     for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
         assert_eq!(Lock::new(tmp.fd()).lock(kind.clone(), AccessMode::Write), Ok(()));
     }
@@ -38,7 +40,7 @@ fn lock_ok() {
 
 #[test]
 fn unlock_error() {
-    let tmp = TempFile::new("file-lock-test");
+    let tmp = TempFile::new("file-lock-test", AccessMode::Write);
     for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
         assert_eq!(Lock::new(tmp.fd()).lock(kind.clone(), AccessMode::Write), Ok(()));
 
@@ -54,7 +56,7 @@ fn unlock_error() {
 
 #[test]
 fn unlock_ok() {
-    let tmp = TempFile::new("file-lock-test");
+    let tmp = TempFile::new("file-lock-test", AccessMode::Write);
     for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
         let l = Lock::new(tmp.fd());
 
@@ -62,4 +64,27 @@ fn unlock_ok() {
         assert_eq!(l.unlock(), Ok(()));
         assert!(l.unlock().is_ok(), "extra unlocks are fine");
     }
+}
+
+#[test]
+fn file_lock_create_file() {
+    use std::io::Write;
+
+    let mut path = env::temp_dir();
+    path.push("file-lock-creation-test");
+
+    let _r = {
+        let mut fl = FileLock::new(path.clone(), AccessMode::Write);
+        let r = Remover { path: fl.path().clone() };
+        fl.lock().unwrap();
+
+        fl.file().unwrap().write(b"hello").unwrap();
+
+        assert!(fs::metadata(&path).is_ok(), "File should have been created");
+        fl.unlock().unwrap();
+        assert!(fs::metadata(&path).is_ok(), "File is still there after unlock");
+        r
+    };
+
+    assert!(fs::metadata(&path).is_ok(), "File is still there after dropping FileLock instance");
 }
