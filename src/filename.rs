@@ -7,7 +7,7 @@ use std::fmt;
 use std::error::Error as ErrorTrait;
 
 use fd;
-pub use util::{Mode, Kind};
+pub use util::{Mode, Kind, ParseError};
 
 #[derive(Debug)]
 pub enum Error {

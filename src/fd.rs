@@ -3,7 +3,7 @@ use std::fmt;
 use std::error::Error as ErrorTrait;
 use errno;
 use libc::c_int;
-pub use util::{Kind, Mode};
+pub use util::{Kind, Mode, ParseError};
 
 extern {
     fn c_lock(fd: i32, should_block: i32, is_write_lock: i32) -> c_int;
