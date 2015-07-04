@@ -11,7 +11,7 @@ pub use util::{Mode, Kind, ParseError};
 
 #[derive(Debug)]
 pub enum Error {
-    LockError(fd::Error),
+    LockError(PathBuf, fd::Error),
     IoError(PathBuf, io::Error),
 }
 
@@ -20,8 +20,8 @@ impl fmt::Display for Error {
         match *self {
             Error::IoError(ref path, ref err) 
                 => write!(f, "Couldn't open lock file at '{}': {}", path.display(), err),
-            Error::LockError(ref err)
-                => err.fmt(f),
+            Error::LockError(ref path, ref err)
+                => write!(f, "{} (at file '{}')", err, path.display()),
         }
     }
 }
@@ -31,19 +31,13 @@ impl ErrorTrait for Error {
         match *self {
             Error::IoError(_, _) 
                 => "Could not open or create the file to lock",
-            Error::LockError(_)
+            Error::LockError(_, _)
                 => "Failed to obtain a file lock"
         }
     }
 }
 
 unsafe impl Send for Error {}
-
-impl From<fd::Error> for Error {
-    fn from(err: fd::Error) -> Self {
-        Error::LockError(err)
-    }
-}
 
 /// A type creating a lock file on demand.
 ///
@@ -92,7 +86,10 @@ impl Lock {
             Err(io_err) => return Err(Error::IoError(self.path.clone(), io_err))
         };
 
-        Ok(try!(fd::lock(fd, kind, self.mode.clone())))
+        match fd::lock(fd, kind, self.mode.clone()) {
+            Ok(res) => Ok(res),
+            Err(lock_err) => Err(Error::LockError(self.path.clone(), lock_err)),
+        }
     }
 
     pub fn lock(&mut self) -> Result<(), Error> {
@@ -105,7 +102,10 @@ impl Lock {
 
     pub fn unlock(&mut self) -> Result<(), Error> {
         match self.file {
-            Some(ref file) => Ok(try!(fd::unlock(file.as_raw_fd()))),
+            Some(ref file) => match fd::unlock(file.as_raw_fd()) {
+                Ok(res) => Ok(res),
+                Err(lock_err) => Err(Error::LockError(self.path.clone(), lock_err)),
+            },
             None => Err(Error::IoError(self.path.clone(),
                                        io::Error::new(io::ErrorKind::NotFound, 
                                        "unlock() called before lock() or try_lock()").into()))
