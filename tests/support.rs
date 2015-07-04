@@ -7,7 +7,7 @@ use std::path::{PathBuf, Path};
 use std::os::unix::io::{RawFd, AsRawFd};
 use std::fs::{File, OpenOptions, remove_file};
 
-use file_lock::AccessMode;
+use file_lock::fd::Mode;
 
 /// A utility type to assure the removal of a file.
 ///
@@ -15,7 +15,6 @@ use file_lock::AccessMode;
 /// of this type is dropped, the lock file will be removed. It is not an error
 /// if the file doesn't exist anymore.
 ///
-/// TODO(ST): remove Remover - it's better as part of TempFile
 pub struct Remover<P: Borrow<PathBuf>> {
   pub path: P,
 }
@@ -53,15 +52,15 @@ impl<P> TempFile<P> where P: Borrow<PathBuf> {
 }
 
 impl TempFile<PathBuf> {
-    pub fn new(name: &str, mode: AccessMode) -> TempFile<PathBuf> {
+    pub fn new(name: &str, mode: Mode) -> TempFile<PathBuf> {
         let mut path = env::temp_dir();
         path.push(name);
 
         TempFile {
             inner: OpenOptions::new()
                                .create(true)
-                               .read(mode == AccessMode::Read)
-                               .write(mode == AccessMode::Write)
+                               .read(mode == Mode::Read)
+                               .write(mode == Mode::Write)
                                .open(&path).unwrap(),
             remover: Remover { path: path },
         }
