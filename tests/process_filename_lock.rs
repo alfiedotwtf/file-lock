@@ -7,7 +7,7 @@ use std::env;
 use std::process::{Command, ExitStatus, Child, Stdio};
 use std::thread::sleep_ms;
 
-use file_lock::*;
+use file_lock::filename::{Lock, Kind, Mode};
 use support::TempFile;
 
 const ENV_LOCK_FILE: &'static str = "FILE_LOCK_TEST_LOCK_FILE_PATH";
@@ -18,7 +18,7 @@ const ENV_ACCESS_MODE: &'static str = "FILE_LOCK_TEST_ACCESS_MODE";
 /// execute main.
 const WAIT_TIME: u32 = 250;
 
-fn configure_command(mut cmd: Command, path: &Path, kind: LockKind, mode: AccessMode)
+fn configure_command(mut cmd: Command, path: &Path, kind: Kind, mode: Mode)
                                                             -> Command {
     cmd.env(ENV_LOCK_FILE, path)
        .env(ENV_LOCK_KIND, kind.as_ref())
@@ -26,7 +26,7 @@ fn configure_command(mut cmd: Command, path: &Path, kind: LockKind, mode: Access
     cmd
 }
 
-fn exec_self_child(path: &Path, kind: LockKind, mode: AccessMode) -> Child {
+fn exec_self_child(path: &Path, kind: Kind, mode: Mode) -> Child {
     configure_command(Command::new(env::current_exe().unwrap()), path, kind, mode)
                .stdin(Stdio::null())
                .stdout(Stdio::null())
@@ -34,7 +34,7 @@ fn exec_self_child(path: &Path, kind: LockKind, mode: AccessMode) -> Child {
                .spawn().unwrap()
 }
 
-fn exec_self_status(path: &Path, kind: LockKind, mode: AccessMode) -> ExitStatus {
+fn exec_self_status(path: &Path, kind: Kind, mode: Mode) -> ExitStatus {
     configure_command(Command::new(env::current_exe().unwrap()), path, kind, mode)
                .output().unwrap().status
 }
@@ -43,43 +43,43 @@ fn exec_self_status(path: &Path, kind: LockKind, mode: AccessMode) -> ExitStatus
 fn inter_process_file_lock() {
     match env::var(ENV_LOCK_FILE) {
         Ok(path) => {
-            let kind: LockKind = env::var(ENV_LOCK_KIND).unwrap().parse().unwrap();
-            let mode: AccessMode = env::var(ENV_ACCESS_MODE).unwrap().parse().unwrap();
+            let kind: Kind = env::var(ENV_LOCK_KIND).unwrap().parse().unwrap();
+            let mode: Mode = env::var(ENV_ACCESS_MODE).unwrap().parse().unwrap();
 
-            FileLock::new(path.into(), mode).any_lock(kind).unwrap();
+            Lock::new(path.into(), mode).any_lock(kind).unwrap();
         },
         Err(_) => {
             // Write (exclusive) lock testing
             let t = TempFile::new("inter-process-write-file-lock-operation", 
-                                  AccessMode::Write);
+                                  Mode::Write);
 
-            for kind in &[LockKind::NonBlocking, LockKind::Blocking] {
+            for kind in &[Kind::NonBlocking, Kind::Blocking] {
 
-                let mut fl = FileLock::new(t.path_buf(), AccessMode::Write);
+                let mut fl = Lock::new(t.path_buf(), Mode::Write);
                 fl.try_lock().unwrap();
 
                 match *kind {
-                    LockKind::NonBlocking => {
-                        assert!(!exec_self_status(t.path(), kind.clone(), AccessMode::Write)
+                    Kind::NonBlocking => {
+                        assert!(!exec_self_status(t.path(), kind.clone(), Mode::Write)
                                                   .success()
                                 , "child can't get exclusive one");
-                        assert!(!exec_self_status(t.path(), kind.clone(), AccessMode::Read)
+                        assert!(!exec_self_status(t.path(), kind.clone(), Mode::Read)
                                                   .success()
                                 , "child can't get read lock");
 
                         fl.unlock().unwrap();
-                        assert!(exec_self_status(t.path(), kind.clone(), AccessMode::Write)
+                        assert!(exec_self_status(t.path(), kind.clone(), Mode::Write)
                                                   .success()
                                 , "child can get exclusive lock");
-                        assert!(exec_self_status(t.path(), kind.clone(), AccessMode::Read)
+                        assert!(exec_self_status(t.path(), kind.clone(), Mode::Read)
                                                   .success()
                                 , "child can get shared lock");
                     },
-                    LockKind::Blocking => {
+                    Kind::Blocking => {
                         let mut child = exec_self_child(t.path(), kind.clone(), 
-                                                        AccessMode::Write);
-                        assert!(!exec_self_status(t.path(), LockKind::NonBlocking, 
-                                                  AccessMode::Write).success(),
+                                                        Mode::Write);
+                        assert!(!exec_self_status(t.path(), Kind::NonBlocking, 
+                                                  Mode::Write).success(),
                                 "can't get non-blocking write lock");
                         sleep_ms(WAIT_TIME);
                         fl.unlock().unwrap();
@@ -88,9 +88,9 @@ fn inter_process_file_lock() {
 
                         fl.lock().unwrap();
                         let mut child = exec_self_child(t.path(), kind.clone(), 
-                                                        AccessMode::Read);
-                        assert!(!exec_self_status(t.path(), LockKind::NonBlocking, 
-                                                  AccessMode::Read).success(),
+                                                        Mode::Read);
+                        assert!(!exec_self_status(t.path(), Kind::NonBlocking, 
+                                                  Mode::Read).success(),
                                 "can't get non-blocking read lock");
 
                         sleep_ms(WAIT_TIME);
@@ -103,19 +103,19 @@ fn inter_process_file_lock() {
             }// end for each lock kind
 
             let t = TempFile::new("inter-process-read-file-lock-operation", 
-                                  AccessMode::Read);
+                                  Mode::Read);
 
-            let mut fl = FileLock::new(t.path_buf(), AccessMode::Read);
+            let mut fl = Lock::new(t.path_buf(), Mode::Read);
             fl.try_lock().unwrap();
 
-            for kind in &[LockKind::NonBlocking, LockKind::Blocking] {
-                assert!(exec_self_status(t.path(), kind.clone(), AccessMode::Read)
+            for kind in &[Kind::NonBlocking, Kind::Blocking] {
+                assert!(exec_self_status(t.path(), kind.clone(), Mode::Read)
                                         .success()
                         , "child can get shared lock");
             }
 
-            let mut child = exec_self_child(t.path(), LockKind::Blocking, AccessMode::Write);
-            assert!(!exec_self_status(t.path(), LockKind::NonBlocking, AccessMode::Write)
+            let mut child = exec_self_child(t.path(), Kind::Blocking, Mode::Write);
+            assert!(!exec_self_status(t.path(), Kind::NonBlocking, Mode::Write)
                                       .success(),
                     "Cannot obtain exclusie lock while there is a reader");
 

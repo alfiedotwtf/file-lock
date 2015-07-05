@@ -1,5 +1,6 @@
 extern crate file_lock;
 extern crate libc;
+extern crate errno;
 
 mod support;
 
@@ -8,7 +9,8 @@ use std::env;
 use std::fs;
 
 use support::{TempFile, Remover};
-use file_lock::*;
+use file_lock::fd::{Lock, Error, Kind, Mode};
+use file_lock::filename::Lock as FileLock;
 
 //
 // unfortunately we can't abstract this out for lock() and lock_wait()
@@ -20,33 +22,33 @@ use file_lock::*;
 #[test]
 fn invalid_fd() {
     for fd in &[-1 as RawFd, 40125] {
-        for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
-            assert_eq!(Lock::new(*fd).lock(kind.clone(), AccessMode::Write), 
-                       Err(Error::Errno(libc::consts::os::posix88::EBADF)));
+        for kind in &[Kind::Blocking, Kind::NonBlocking] {
+            assert_eq!(Lock::new(*fd).lock(kind.clone(), Mode::Write), 
+                       Err(Error::Errno(errno::Errno(libc::consts::os::posix88::EBADF))));
         }
 
         assert_eq!(Lock::new(*fd).unlock(), 
-                   Err(Error::Errno(libc::consts::os::posix88::EBADF)));
+                   Err(Error::Errno(errno::Errno(libc::consts::os::posix88::EBADF))));
     }
 }
 
 #[test]
 fn lock_ok() {
-    let tmp = TempFile::new("file-lock-test", AccessMode::Write);
-    for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
-        assert_eq!(Lock::new(tmp.fd()).lock(kind.clone(), AccessMode::Write), Ok(()));
+    let tmp = TempFile::new("file-lock-test", Mode::Write);
+    for kind in &[Kind::Blocking, Kind::NonBlocking] {
+        assert_eq!(Lock::new(tmp.fd()).lock(kind.clone(), Mode::Write), Ok(()));
     }
 }
 
 #[test]
 fn unlock_error() {
-    let tmp = TempFile::new("file-lock-test", AccessMode::Write);
-    for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
-        assert_eq!(Lock::new(tmp.fd()).lock(kind.clone(), AccessMode::Write), Ok(()));
+    let tmp = TempFile::new("file-lock-test", Mode::Write);
+    for kind in &[Kind::Blocking, Kind::NonBlocking] {
+        assert_eq!(Lock::new(tmp.fd()).lock(kind.clone(), Mode::Write), Ok(()));
 
         // fcntl() will only allow us to hold a single lock on a file at a time
         // so this test can't work :(
-        assert_eq!(Lock::new(tmp.fd()).lock(kind.clone(), AccessMode::Write), Ok(()));
+        assert_eq!(Lock::new(tmp.fd()).lock(kind.clone(), Mode::Write), Ok(()));
 
 
         // unlock without prior lock 
@@ -56,11 +58,11 @@ fn unlock_error() {
 
 #[test]
 fn unlock_ok() {
-    let tmp = TempFile::new("file-lock-test", AccessMode::Write);
-    for kind in &[LockKind::Blocking, LockKind::NonBlocking] {
+    let tmp = TempFile::new("file-lock-test", Mode::Write);
+    for kind in &[Kind::Blocking, Kind::NonBlocking] {
         let l = Lock::new(tmp.fd());
 
-        assert_eq!(l.lock(kind.clone(), AccessMode::Write), Ok(()));
+        assert_eq!(l.lock(kind.clone(), Mode::Write), Ok(()));
         assert_eq!(l.unlock(), Ok(()));
         assert!(l.unlock().is_ok(), "extra unlocks are fine");
     }
@@ -74,7 +76,7 @@ fn file_lock_create_file() {
     path.push("file-lock-creation-test");
 
     let _r = {
-        let mut fl = FileLock::new(path.clone(), AccessMode::Write);
+        let mut fl = FileLock::new(path.clone(), Mode::Write);
         let r = Remover { path: fl.path().clone() };
         fl.lock().unwrap();
 

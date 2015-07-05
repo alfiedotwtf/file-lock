@@ -7,7 +7,7 @@ use std::process::{Command, ExitStatus};
 use std::os::unix::io::AsRawFd;
 use std::fs::OpenOptions;
 
-use file_lock::*;
+use file_lock::fd::{Lock, Kind, Mode};
 use support::TempFile;
 
 
@@ -23,11 +23,11 @@ fn inter_process_lock() {
 
             // we are the slave and just attempt to acquire a lock.
             Lock::new(file.as_raw_fd())
-                 .lock(LockKind::NonBlocking, AccessMode::Write).unwrap();
+                 .lock(Kind::NonBlocking, Mode::Write).unwrap();
         },
         Err(_) => {
             // we are the driver
-            let t = TempFile::new("inter-process-write-lock-operation", AccessMode::Write);
+            let t = TempFile::new("inter-process-write-lock-operation", Mode::Write);
 
             let exec_self_status = || -> ExitStatus {
                 Command::new(env::current_exe().unwrap())
@@ -37,7 +37,7 @@ fn inter_process_lock() {
             
             {
                 let l = Lock::new(t.fd());
-                l.lock(LockKind::NonBlocking, AccessMode::Write).unwrap();
+                l.lock(Kind::NonBlocking, Mode::Write).unwrap();
                 assert!(!exec_self_status().success(), "Other process can't take lock");
             }
 

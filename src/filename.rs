@@ -6,11 +6,12 @@ use std::os::unix::io::{RawFd, AsRawFd};
 use std::fmt;
 use std::error::Error as ErrorTrait;
 
-use lock::{self, LockKind, AccessMode, lock, unlock};
+use fd;
+pub use util::{Mode, Kind, ParseError};
 
 #[derive(Debug)]
 pub enum Error {
-    LockError(lock::Error),
+    LockError(PathBuf, fd::Error),
     IoError(PathBuf, io::Error),
 }
 
@@ -19,8 +20,8 @@ impl fmt::Display for Error {
         match *self {
             Error::IoError(ref path, ref err) 
                 => write!(f, "Couldn't open lock file at '{}': {}", path.display(), err),
-            Error::LockError(ref err)
-                => err.fmt(f),
+            Error::LockError(ref path, ref err)
+                => write!(f, "{} (at file '{}')", err, path.display()),
         }
     }
 }
@@ -30,19 +31,13 @@ impl ErrorTrait for Error {
         match *self {
             Error::IoError(_, _) 
                 => "Could not open or create the file to lock",
-            Error::LockError(_)
+            Error::LockError(_, _)
                 => "Failed to obtain a file lock"
         }
     }
 }
 
 unsafe impl Send for Error {}
-
-impl From<lock::Error> for Error {
-    fn from(err: lock::Error) -> Self {
-        Error::LockError(err)
-    }
-}
 
 /// A type creating a lock file on demand.
 ///
@@ -52,15 +47,15 @@ impl From<lock::Error> for Error {
 ///
 /// It will remove the lock file it possibly created in case a lock could be obtained.
 #[derive(Debug)]
-pub struct FileLock {
+pub struct Lock {
     path: PathBuf,
     file: Option<File>,
-    mode: AccessMode
+    mode: Mode
 }
 
-impl FileLock {
-    pub fn new(path: PathBuf, mode: AccessMode) -> FileLock {
-        FileLock {
+impl Lock {
+    pub fn new(path: PathBuf, mode: Mode) -> Lock {
+        Lock {
             path: path,
             file: None,
             mode: mode,
@@ -74,8 +69,8 @@ impl FileLock {
 
         let (raw_fd, file) = match OpenOptions::new()
                                    .create(true)
-                                   .read(self.mode == AccessMode::Read)
-                                   .write(self.mode == AccessMode::Write)
+                                   .read(self.mode == Mode::Read)
+                                   .write(self.mode == Mode::Write)
                                    .open(&self.path) {
             Err(io_err) => return Err(io_err),
             Ok(file) => (file.as_raw_fd(), Some(file))
@@ -85,26 +80,32 @@ impl FileLock {
         Ok(raw_fd)
     }
 
-    pub fn any_lock(&mut self, kind: LockKind) -> Result<(), Error> {
+    pub fn any_lock(&mut self, kind: Kind) -> Result<(), Error> {
         let fd = match self.opened_file_fd() {
             Ok(fd) => fd,
             Err(io_err) => return Err(Error::IoError(self.path.clone(), io_err))
         };
 
-        Ok(try!(lock(fd, kind, self.mode.clone())))
+        match fd::lock(fd, kind, self.mode.clone()) {
+            Ok(res) => Ok(res),
+            Err(lock_err) => Err(Error::LockError(self.path.clone(), lock_err)),
+        }
     }
 
     pub fn lock(&mut self) -> Result<(), Error> {
-        self.any_lock(LockKind::Blocking)
+        self.any_lock(Kind::Blocking)
     }
 
     pub fn try_lock(&mut self) -> Result<(), Error> {
-        self.any_lock(LockKind::NonBlocking)
+        self.any_lock(Kind::NonBlocking)
     }
 
     pub fn unlock(&mut self) -> Result<(), Error> {
         match self.file {
-            Some(ref file) => Ok(try!(unlock(file.as_raw_fd()))),
+            Some(ref file) => match fd::unlock(file.as_raw_fd()) {
+                Ok(res) => Ok(res),
+                Err(lock_err) => Err(Error::LockError(self.path.clone(), lock_err)),
+            },
             None => Err(Error::IoError(self.path.clone(),
                                        io::Error::new(io::ErrorKind::NotFound, 
                                        "unlock() called before lock() or try_lock()").into()))
@@ -120,7 +121,7 @@ impl FileLock {
     }
 }
 
-impl Drop for FileLock {
+impl Drop for Lock {
     fn drop(&mut self) {
         self.unlock().ok();
     }

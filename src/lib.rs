@@ -16,13 +16,13 @@
 //! extern crate file_lock;
 //! extern crate tempfile;
 //!
-//! use file_lock::*;
+//! use file_lock::fd::{Lock, Error, Mode, Kind};
 //! use std::os::unix::io::AsRawFd;
 //!
 //! fn main() {
 //!     let f = tempfile::TempFile::new().unwrap();
 //!
-//!     match Lock::new(f.as_raw_fd()).lock(LockKind::NonBlocking, AccessMode::Write) {
+//!     match Lock::new(f.as_raw_fd()).lock(Kind::NonBlocking, Mode::Write) {
 //!         Ok(_)  => println!("Got lock"),
 //!         Err(Error::Errno(i))
 //!               => println!("Got filesystem error {}", i),
@@ -31,9 +31,8 @@
 //! ```
 
 extern crate libc;
+extern crate errno;
 
-pub mod lock;
-pub mod flock;
-
-pub use lock::{Lock, LockKind, AccessMode, Error, ParseError};
-pub use flock::FileLock;
+pub mod fd;
+pub mod filename;
+mod util;
