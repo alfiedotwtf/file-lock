@@ -8,7 +8,7 @@ documentation = "https://alfiedotwtf.github.io/file-lock/"
 homepage = "https://crates.io/crates/file-lock"
 repository = "https://github.com/alfiedotwtf/file-lock"
 
-license = "MIT"
+license = "MIT OR Apache-2.0"
 
 build = "build.rs"
 
