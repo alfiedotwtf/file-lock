@@ -8,6 +8,7 @@ license     = "MIT"
 documentation = "http://docs.rs/file-lock/"
 homepage      = "https://crates.io/crates/file-lock"
 repository    = "https://gitlab.com/alfiedotwtf/file-lock"
+readme        = "README.md"
 
 build   = "build.rs"
 
