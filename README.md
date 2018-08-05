@@ -10,36 +10,34 @@ via fcntl().
 
     extern crate file_lock;
 
-    use file_lock::*;
-    use file_lock::Error::*;
-    
+    use file_lock::FileLock;
+
     fn main() {
-      let l = lock("/tmp/file-lock-test");
-    
-      match l {
-          Ok(_)  => println!("Got lock"),
-          Err(e) => match e {
-            InvalidFilename => println!("Invalid filename"),
-            Errno(i)        => println!("Got filesystem error {}", i),
-          }
-      }
+        let should_we_block  = true;
+        let lock_for_writing = true;
+
+        let filelock = match FileLock::lock("myfile.txt", should_we_block, lock_for_writing) {
+            Ok(lock) => lock,
+            Err(err) => panic!("Error getting write lock: {}", err),
+        };
+
+        println!("Successfully got a write lock: {:#?}", filelock.file);
+
+        // ...
+
+        // Manually unlocking is optional as we unlock on Drop
+        filelock.unlock();
     }
 
 # DOCUMENTATION
 
-* [https://alfiedotwtf.github.io/file-lock/](https://alfiedotwtf.github.io/file-lock/)
+* [https://docs.rs/file-lock/](https://docs.rs/file-lock/)
 
 # SUPPORT
 
-[![Build Status](https://travis-ci.org/alfiedotwtf/file-lock.svg?branch=idiomatic-rust)](https://travis-ci.org/alfiedotwtf/file-lock)
-
 Please report any bugs or feature requests at:
 
-* [https://github.com/alfiedotwtf/file-lock/issues](https://github.com/alfiedotwtf/file-lock/issues)
-
-Watch the repository and keep up with the latest changes:
-
-* [https://github.com/alfiedotwtf/file-lock/subscription](https://github.com/alfiedotwtf/file-lock/subscription)
+* [https://gitlab.com/alfiedotwtf/file-lock/issues](https://gitlab.com/alfiedotwtf/file-lock/issues)
 
 Feel free to fork the repository and submit pull requests :)
 
@@ -65,7 +63,7 @@ IT COMES WITHOUT WARRANTY OF ANY KIND.
 
 MIT License
 
-Copyright (c) 2015 Alfie John
+Perpetual Copyright (c) Alfie John
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -94,7 +92,7 @@ Licensed under either of
 
 at your option.
 
-### Contribution
+## Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally
 submitted for inclusion in the work by you, as defined in the Apache-2.0

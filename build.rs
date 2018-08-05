@@ -1,5 +1,7 @@
 extern crate gcc;
 
 fn main() {
-  gcc::compile_library("liblock.a", &["src/lock.c"]);
+  gcc::Build::new()
+    .file("src/file_lock.c")
+    .compile("libfile_lock.a")
 }
