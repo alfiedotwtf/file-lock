@@ -101,7 +101,7 @@ impl FileLock {
 
     /// Unlock our locked file
     ///
-    /// *Note:* This method is optional as lockfile will be unlocked automatically when dropped
+    /// *Note:* This method is optional as the file lock will be unlocked automatically when dropped
     ///
     /// # Examples
     ///
@@ -150,7 +150,7 @@ mod test {
 
     #[test]
     fn lock_and_unlock() {
-        let filename = "lockfile.test";
+        let filename = "filelock.test";
 
         for already_exists in &[true, false] {
             for already_locked in &[true, false] {
