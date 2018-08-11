@@ -14,19 +14,18 @@
 //! extern crate file_lock;
 //!
 //! use file_lock::FileLock;
+//! use std::io::prelude::*;
 //!
 //! fn main() {
 //!     let should_we_block  = true;
 //!     let lock_for_writing = true;
 //!
-//!     let filelock = match FileLock::lock("myfile.txt", should_we_block, lock_for_writing) {
+//!     let mut filelock = match FileLock::lock("myfile.txt", should_we_block, lock_for_writing) {
 //!         Ok(lock) => lock,
 //!         Err(err) => panic!("Error getting write lock: {}", err),
 //!     };
 //!
-//!     println!("Successfully got a write lock: {:#?}", filelock.file);
-//!
-//!     // ...
+//!     filelock.file.write_all(b"Hello, World!").is_ok();
 //!
 //!     // Manually unlocking is optional as we unlock on Drop
 //!     filelock.unlock();
@@ -68,13 +67,22 @@ impl FileLock {
     /// # Examples
     ///
     ///```
+    ///extern crate file_lock;
     ///
     ///use file_lock::FileLock;
+    ///use std::io::prelude::*;
     ///
-    ///let filelock = match FileLock::lock("myfile.txt", true, true) {
-    ///    Ok(lock) => lock,
-    ///    Err(err) => panic!("Error getting a blocked write lock: {}", err),
-    ///};
+    ///fn main() {
+    ///    let should_we_block  = true;
+    ///    let lock_for_writing = true;
+    ///
+    ///    let mut filelock = match FileLock::lock("myfile.txt", should_we_block, lock_for_writing) {
+    ///        Ok(lock) => lock,
+    ///        Err(err) => panic!("Error getting write lock: {}", err),
+    ///    };
+    ///
+    ///    filelock.file.write_all(b"Hello, World!").is_ok();
+    ///}
     ///```
     ///
     pub fn lock(filename: &str, is_blocking: bool, is_writable: bool) -> Result<FileLock, Error> {
@@ -106,17 +114,27 @@ impl FileLock {
     /// # Examples
     ///
     ///```
+    ///extern crate file_lock;
+    ///
     ///use file_lock::FileLock;
+    ///use std::io::prelude::*;
     ///
-    ///let filelock = match FileLock::lock("myfile.txt", true, true) {
-    ///    Ok(lock) => lock,
-    ///    Err(err) => panic!("Error getting a blocked write lock: {}", err),
-    ///};
+    ///fn main() {
+    ///    let should_we_block  = true;
+    ///    let lock_for_writing = true;
     ///
-    ///match filelock.unlock() {
-    ///    Ok(_)    => println!("Successfully unlocked the file"),
-    ///    Err(err) => panic!("Error unlocking the file: {}", err),
-    ///};
+    ///    let mut filelock = match FileLock::lock("myfile.txt", should_we_block, lock_for_writing) {
+    ///        Ok(lock) => lock,
+    ///        Err(err) => panic!("Error getting write lock: {}", err),
+    ///    };
+    ///
+    ///    filelock.file.write_all(b"Hello, World!").is_ok();
+    ///
+    ///    match filelock.unlock() {
+    ///        Ok(_)    => println!("Successfully unlocked the file"),
+    ///        Err(err) => panic!("Error unlocking the file: {}", err),
+    ///    };
+    ///}
     ///```
     ///
     pub fn unlock(&self) -> Result<(), Error> {
