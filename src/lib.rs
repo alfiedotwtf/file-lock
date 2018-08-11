@@ -47,7 +47,7 @@ extern "C" {
     fn c_unlock(fd: i32) -> c_int;
 }
 
-/// Represents the actualy locked file
+/// Represents the actually locked file
 #[derive(Debug)]
 pub struct FileLock {
     /// the `std::fs::File` of the file that's locked
