@@ -13,15 +13,15 @@
 //! ```
 //! extern crate file_lock;
 //!
-//! use file_lock::FileLock;
+//! use file_lock::{FileLock, FileOptions};
 //! use std::fs::OpenOptions;
 //! use std::io::prelude::*;
 //!
 //! fn main() {
 //!     let should_we_block  = true;
-//!     let options = OpenOptions::new()
+//!     let options = FileOptions::new()
 //!                         .write(true)
-//!                         .create_new(true)
+//!                         .create(true)
 //!                         .append(true);
 //!
 //!     let mut filelock = match FileLock::lock("myfile.txt", should_we_block, options) {
@@ -39,11 +39,14 @@
 extern crate libc;
 extern crate nix;
 
+mod file_options;
+
 use libc::c_int;
 use std::fs::File;
-use std::fs::OpenOptions;
 use std::io::Error;
 use std::os::unix::io::AsRawFd;
+
+pub use file_options::FileOptions;
 
 extern "C" {
     fn c_lock(fd: i32, is_blocking: i32, is_writeable: i32) -> c_int;
@@ -73,15 +76,15 @@ impl FileLock {
     ///```
     ///extern crate file_lock;
     ///
-    ///use file_lock::FileLock;
+    ///use file_lock::{FileLock, FileOptions};
     ///use std::fs::OpenOptions;
     ///use std::io::prelude::*;
     ///
     ///fn main() {
     ///    let should_we_block  = true;
-    ///    let options = OpenOptions::new()
+    ///    let options = FileOptions::new()
     ///                        .write(true)
-    ///                        .create_new(true)
+    ///                        .create(true)
     ///                        .append(true);
     ///
     ///    let mut filelock = match FileLock::lock("myfile.txt", should_we_block, options) {
@@ -96,13 +99,12 @@ impl FileLock {
     pub fn lock(
         filename: &str,
         is_blocking: bool,
-        options: &mut OpenOptions,
+        options: FileOptions,
     ) -> Result<FileLock, Error> {
         let file = options.open(&filename)?;
-        let is_writeable = !file.metadata()?.permissions().readonly();
+        let is_writeable = options.writeable;
 
-        let errno =
-            unsafe { c_lock(file.as_raw_fd(), is_blocking as i32, is_writeable as i32) };
+        let errno = unsafe { c_lock(file.as_raw_fd(), is_blocking as i32, is_writeable as i32) };
 
         match errno {
             0 => Ok(FileLock { file }),
@@ -119,12 +121,12 @@ impl FileLock {
     ///```
     ///extern crate file_lock;
     ///
-    ///use file_lock::FileLock;
+    ///use file_lock::{FileLock, FileOptions};
     ///use std::io::prelude::*;
     ///
     ///fn main() {
     ///    let should_we_block  = true;
-    ///    let lock_for_writing = true;
+    ///    let lock_for_writing = FileOptions::new().write(true).create(true);
     ///
     ///    let mut filelock = match FileLock::lock("myfile.txt", should_we_block, lock_for_writing) {
     ///        Ok(lock) => lock,
@@ -152,7 +154,7 @@ impl FileLock {
 
 impl Drop for FileLock {
     fn drop(&mut self) {
-        self.unlock().is_ok();
+        let _ = self.unlock().is_ok();
     }
 }
 
@@ -162,18 +164,16 @@ mod test {
 
     use nix::unistd::fork;
     use nix::unistd::ForkResult::{Child, Parent};
-    use std::fs::remove_file;
+    use std::fs::{remove_file, OpenOptions};
     use std::process;
     use std::thread::sleep;
     use std::time::Duration;
 
-    fn standard_options(is_writable: &bool) -> OpenOptions {
-        let mut options = OpenOptions::new();
-        options
+    fn standard_options(is_writable: &bool) -> FileOptions {
+        FileOptions::new()
             .read(!*is_writable)
             .write(*is_writable)
-            .create(*is_writable);
-        options
+            .create(*is_writable)
     }
 
     #[test]
@@ -190,7 +190,7 @@ mod test {
                                 continue;
                             }
 
-                            remove_file(&filename).is_ok();
+                            let _ = remove_file(&filename).is_ok();
 
                             let parent_lock = match *already_exists {
                                 false => None,
@@ -199,14 +199,13 @@ mod test {
                                         .write(true)
                                         .create(true)
                                         .open(&filename)
-                                        .is_ok();
+                                        .expect("Test failed");
 
                                     match *already_locked {
                                         false => None,
                                         true => {
-                                            let mut options = standard_options(already_writable);
-                                            match FileLock::lock(&filename, true, &mut options)
-                                            {
+                                            let options = standard_options(already_writable);
+                                            match FileLock::lock(filename, true, options) {
                                                 Ok(lock) => Some(lock),
                                                 Err(err) => {
                                                     panic!("Error creating parent lock ({})", err)
@@ -221,11 +220,8 @@ mod test {
                                 Ok(Parent { child: _ }) => {
                                     sleep(Duration::from_millis(150));
 
-                                    match parent_lock {
-                                        Some(lock) => {
-                                            lock.unlock().is_ok();
-                                        }
-                                        None => {}
+                                    if let Some(lock) = parent_lock {
+                                        lock.unlock().expect("Test failed");
                                     }
 
                                     sleep(Duration::from_millis(350));
@@ -237,19 +233,19 @@ mod test {
                                     match *already_locked {
                                         true => match *is_blocking {
                                             true => {
-                                                let mut options = standard_options(is_writable);
-                                                match FileLock::lock(filename, *is_blocking, &mut options) {
+                                                let options = standard_options(is_writable);
+                                                match FileLock::lock(filename, *is_blocking, options) {
                                                     Ok(_)  => { locked = true },
                                                     Err(_) => panic!("Error getting lock after wating for release"),
                                                 }
                                             }
                                             false => {
                                                 for _ in 0..5 {
-                                                    let mut  options = standard_options(is_writable);
+                                                    let options = standard_options(is_writable);
                                                     match FileLock::lock(
                                                         filename,
                                                         *is_blocking,
-                                                        &mut options,
+                                                        options,
                                                     ) {
                                                         Ok(_) => {
                                                             locked = true;
@@ -257,19 +253,15 @@ mod test {
                                                         }
                                                         Err(_) => {
                                                             sleep(Duration::from_millis(50));
-                                                            try_count = try_count + 1;
+                                                            try_count += 1;
                                                         }
                                                     }
                                                 }
                                             }
                                         },
                                         false => {
-                                            let mut options = standard_options(is_writable);
-                                            match FileLock::lock(
-                                                filename,
-                                                *is_blocking,
-                                                &mut options,
-                                            ) {
+                                            let options = standard_options(is_writable);
+                                            match FileLock::lock(filename, *is_blocking, options) {
                                                 Ok(_) => locked = true,
                                                 Err(_) => match !*already_exists && !*is_writable {
                                                     true => {}
@@ -278,18 +270,17 @@ mod test {
                                                     }
                                                 },
                                             }
-                                        },
+                                        }
                                     }
 
                                     match !already_exists && !is_writable {
-                                        true => assert_eq!(
-                                            locked, false,
+                                        true => assert!(
+                                            !locked,
                                             "Locking a non-existent file for reading should fail"
                                         ),
-                                        false => assert_eq!(
-                                            locked, true,
-                                            "Lock should have been successful"
-                                        ),
+                                        false => {
+                                            assert!(locked, "Lock should have been successful")
+                                        }
                                     }
 
                                     match *is_blocking {
@@ -312,7 +303,7 @@ mod test {
                                 }
                             }
 
-                            remove_file(&filename).is_ok();
+                            let _ = remove_file(&filename).is_ok();
                         }
                     }
                 }
