@@ -36,7 +36,7 @@ via fcntl().
 
 Please report any bugs or feature requests at:
 
-* [https://gitlab.com/alfiedotwtf/file-lock/issues](https://gitlab.com/alfiedotwtf/file-lock/issues)
+* [https://github.com/alfiedotwtf/file-lock/issues](https://github.com/alfiedotwtf/file-lock/issues)
 
 Feel free to fork the repository and submit pull requests :)
 
@@ -54,6 +54,8 @@ Feel free to fork the repository and submit pull requests :)
 
 [Sebastian Thiel](http://byronimo.de) &lt;[byronimo@gmail.com](mailto:byronimo@gmail.com)&gt;
 
+Jacob Turner &lt;[jacob.turner870@gmail.com](mailto:jacob.turner870@gmail.com)&gt;
+
 # WARRANTY
 
 IT COMES WITHOUT WARRANTY OF ANY KIND.
@@ -62,7 +64,7 @@ IT COMES WITHOUT WARRANTY OF ANY KIND.
 
 MIT License
 
-Perpetual Copyright (c) Alfie John
+Copyright (c) 2021 Alfie John
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
