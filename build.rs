@@ -1,7 +1,7 @@
-extern crate gcc;
+extern crate cc;
 
 fn main() {
-  gcc::Build::new()
-    .file("src/file_lock.c")
-    .compile("libfile_lock.a")
+    cc::Build::new()
+        .file("src/file_lock.c")
+        .compile("libfile_lock.a")
 }

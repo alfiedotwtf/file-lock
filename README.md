@@ -10,12 +10,12 @@ via fcntl().
 
     extern crate file_lock;
 
-    use file_lock::FileLock;
+    use file_lock::{FileLock, FileOptions};
     use std::io::prelude::*;
 
     fn main() {
         let should_we_block  = true;
-        let lock_for_writing = true;
+        let lock_for_writing = FileOptions::new().write(true).create_new(true);
 
         let mut filelock = match FileLock::lock("myfile.txt", should_we_block, lock_for_writing) {
             Ok(lock) => lock,
