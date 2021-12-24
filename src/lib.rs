@@ -216,74 +216,81 @@ mod test {
                                 }
                             };
 
-                            match fork() {
-                                Ok(Parent { child: _ }) => {
-                                    sleep(Duration::from_millis(150));
+                            unsafe {
+                                match fork() {
+                                    Ok(Parent { child: _ }) => {
+                                        sleep(Duration::from_millis(150));
 
-                                    if let Some(lock) = parent_lock {
-                                        lock.unlock().expect("Test failed");
+                                        if let Some(lock) = parent_lock {
+                                            lock.unlock().expect("Test failed");
+                                        }
+
+                                        sleep(Duration::from_millis(350));
                                     }
+                                    Ok(Child) => {
+                                        let mut try_count = 0;
+                                        let mut locked = false;
 
-                                    sleep(Duration::from_millis(350));
-                                }
-                                Ok(Child) => {
-                                    let mut try_count = 0;
-                                    let mut locked = false;
-
-                                    match *already_locked {
-                                        true => match *is_blocking {
-                                            true => {
-                                                let options = standard_options(is_writable);
-                                                match FileLock::lock(filename, *is_blocking, options) {
+                                        match *already_locked {
+                                            true => match *is_blocking {
+                                                true => {
+                                                    let options = standard_options(is_writable);
+                                                    match FileLock::lock(filename, *is_blocking, options) {
                                                     Ok(_)  => { locked = true },
                                                     Err(_) => panic!("Error getting lock after wating for release"),
                                                 }
-                                            }
-                                            false => {
-                                                for _ in 0..5 {
-                                                    let options = standard_options(is_writable);
-                                                    match FileLock::lock(
-                                                        filename,
-                                                        *is_blocking,
-                                                        options,
-                                                    ) {
-                                                        Ok(_) => {
-                                                            locked = true;
-                                                            break;
+                                                }
+                                                false => {
+                                                    for _ in 0..5 {
+                                                        let options = standard_options(is_writable);
+                                                        match FileLock::lock(
+                                                            filename,
+                                                            *is_blocking,
+                                                            options,
+                                                        ) {
+                                                            Ok(_) => {
+                                                                locked = true;
+                                                                break;
+                                                            }
+                                                            Err(_) => {
+                                                                sleep(Duration::from_millis(50));
+                                                                try_count += 1;
+                                                            }
                                                         }
-                                                        Err(_) => {
-                                                            sleep(Duration::from_millis(50));
-                                                            try_count += 1;
+                                                    }
+                                                }
+                                            },
+                                            false => {
+                                                let options = standard_options(is_writable);
+                                                match FileLock::lock(
+                                                    filename,
+                                                    *is_blocking,
+                                                    options,
+                                                ) {
+                                                    Ok(_) => locked = true,
+                                                    Err(_) => {
+                                                        match !*already_exists && !*is_writable {
+                                                            true => {}
+                                                            false => {
+                                                                panic!("Error getting lock with no competition")
+                                                            }
                                                         }
                                                     }
                                                 }
                                             }
-                                        },
-                                        false => {
-                                            let options = standard_options(is_writable);
-                                            match FileLock::lock(filename, *is_blocking, options) {
-                                                Ok(_) => locked = true,
-                                                Err(_) => match !*already_exists && !*is_writable {
-                                                    true => {}
-                                                    false => {
-                                                        panic!("Error getting lock with no competition")
-                                                    }
-                                                },
-                                            }
                                         }
-                                    }
 
-                                    match !already_exists && !is_writable {
-                                        true => assert!(
+                                        match !already_exists && !is_writable {
+                                            true => assert!(
                                             !locked,
                                             "Locking a non-existent file for reading should fail"
                                         ),
-                                        false => {
-                                            assert!(locked, "Lock should have been successful")
+                                            false => {
+                                                assert!(locked, "Lock should have been successful")
+                                            }
                                         }
-                                    }
 
-                                    match *is_blocking {
+                                        match *is_blocking {
                                         true  => assert_eq!(try_count, 0, "Try count should be zero when blocking"),
                                         false => {
                                             match *already_locked {
@@ -296,10 +303,11 @@ mod test {
                                         },
                                     }
 
-                                    process::exit(7);
-                                }
-                                Err(_) => {
-                                    panic!("Error forking tests :(");
+                                        process::exit(7);
+                                    }
+                                    Err(_) => {
+                                        panic!("Error forking tests :(");
+                                    }
                                 }
                             }
 
