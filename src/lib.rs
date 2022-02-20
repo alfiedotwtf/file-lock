@@ -45,6 +45,7 @@ use libc::c_int;
 use std::fs::File;
 use std::io::Error;
 use std::os::unix::io::AsRawFd;
+use std::path::Path;
 
 pub use file_options::FileOptions;
 
@@ -65,7 +66,7 @@ impl FileLock {
     ///
     /// # Parameters
     ///
-    /// `filename` is the path of the file we want to lock on
+    /// `path` is the path of the file we want to lock on
     ///
     /// `is_blocking` is a flag to indicate if we should block if it's already locked
     ///
@@ -96,12 +97,12 @@ impl FileLock {
     ///}
     ///```
     ///
-    pub fn lock(
-        filename: &str,
+    pub fn lock<P: AsRef<Path>>(
+        path: P,
         is_blocking: bool,
         options: FileOptions,
     ) -> Result<FileLock, Error> {
-        let file = options.open(&filename)?;
+        let file = options.open(path)?;
         let is_writeable = options.writeable;
 
         let errno = unsafe { c_lock(file.as_raw_fd(), is_blocking as i32, is_writeable as i32) };
