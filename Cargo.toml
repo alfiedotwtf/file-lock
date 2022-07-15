@@ -1,6 +1,6 @@
 [package]
 name        = "file-lock"
-version     = "2.1.4"
+version     = "2.1.5"
 authors     = ["Alfie John <alfie@alfie.wtf>", "Sebastian Thiel <byronimo@gmail.com>", "Jacob Turner <jacob.turner870@gmail.com>", "Michael Lohr <michael@lohr.dev>", "Corey Richardson <corey@octayn.net>"]
 description = "File locking via POSIX advisory record locks"
 license     = "MIT"
@@ -13,9 +13,9 @@ readme        = "README.md"
 build   = "build.rs"
 
 [dependencies]
-libc   = "=0.2.121"
-mktemp = "=0.4.1"
-nix    = { version = "=0.24.1", default-features = false, features = ["process"] }
+libc   = "0.2.121"
+mktemp = "0.4.1"
+nix    = { version = "0.24.1", default-features = false, features = ["process"] }
 
 [build-dependencies]
-cc = "=1.0.72"
+cc = "1.0.72"
