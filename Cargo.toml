@@ -1,11 +1,11 @@
 [package]
 name        = "file-lock"
-version     = "2.1.5"
+version     = "2.1.6"
 authors     = ["Alfie John <alfie@alfie.wtf>", "Sebastian Thiel <byronimo@gmail.com>", "Jacob Turner <jacob.turner870@gmail.com>", "Michael Lohr <michael@lohr.dev>", "Corey Richardson <corey@octayn.net>"]
 description = "File locking via POSIX advisory record locks"
 license     = "MIT"
 
-documentation = "http://docs.rs/file-lock/"
+documentation = "https://docs.rs/file-lock/"
 homepage      = "https://crates.io/crates/file-lock"
 repository    = "https://github.com/alfiedotwtf/file-lock"
 readme        = "README.md"

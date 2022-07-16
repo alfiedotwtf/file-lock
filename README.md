@@ -46,13 +46,13 @@ Feel free to fork the repository and submit pull requests :)
 
 # SEE ALSO
 
-* [Lock, Stock and Two Smoking Barrels](http://www.imdb.com/title/tt0120735/)
+* [Lock, Stock and Two Smoking Barrels](https://www.imdb.com/title/tt0120735/)
 
 # AUTHORS
 
 [Alfie John](https://www.alfie.wtf) &lt;[alfie@alfie.wtf](mailto:alfie@alfie.wtf)&gt;
 
-[Sebastian Thiel](http://byronimo.de) &lt;[byronimo@gmail.com](mailto:byronimo@gmail.com)&gt;
+Sebastian Thiel &lt;[byronimo@gmail.com](mailto:byronimo@gmail.com)&gt;
 
 Jacob Turner &lt;[jacob.turner870@gmail.com](mailto:jacob.turner870@gmail.com)&gt;
 
@@ -88,8 +88,8 @@ SOFTWARE.
 
 Licensed under either of
 
- * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
- * MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+ * Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or https://www.apache.org/licenses/LICENSE-2.0)
+ * MIT license ([LICENSE-MIT](LICENSE-MIT) or https://opensource.org/licenses/MIT)
 
 at your option.
 
