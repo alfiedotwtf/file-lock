@@ -36,15 +36,12 @@
 //! }
 //! ```
 
-extern crate libc;
-extern crate nix;
-
 mod file_options;
 
 use libc::c_int;
 use std::fs::File;
 use std::io::Error;
-use std::os::unix::io::AsRawFd;
+use std::os::fd::AsRawFd;
 use std::path::Path;
 
 pub use file_options::FileOptions;
