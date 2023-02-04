@@ -50,11 +50,17 @@ Feel free to fork the repository and submit pull requests :)
 
 # AUTHORS
 
-[Alfie John](https://www.alfie.wtf) &lt;[alfie@alfie.wtf](mailto:alfie@alfie.wtf)&gt;
+[Alfie John](https://www.alfie.wtf)
 
-Sebastian Thiel &lt;[byronimo@gmail.com](mailto:byronimo@gmail.com)&gt;
+Corey Richardson
 
-Jacob Turner &lt;[jacob.turner870@gmail.com](mailto:jacob.turner870@gmail.com)&gt;
+Jacob Turner
+
+Michael Lohr
+
+Quang Luong
+
+Sebastian Thiel
 
 # WARRANTY
 
