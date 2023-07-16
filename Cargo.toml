@@ -1,7 +1,7 @@
 [package]
 name        = "file-lock"
-version     = "2.1.8"
-authors     = ["Alfie John <alfie@alfie.wtf>", "Corey Richardson <corey@octayn.net>", "Jacob Turner <jacob.turner870@gmail.com>", "Michael Lohr <michael@lohr.dev>", "Quang Luong <quang@cloudflare.com>", "Sebastian Thiel <byronimo@gmail.com>"]
+version     = "2.1.10"
+authors     = ["Alfie John <alfie@alfie.wtf>", "Corey Richardson <corey@octayn.net>", "Jacob Turner <jacob.turner870@gmail.com>", "Mateusz Kondej <m.kondej@fudosecurity.com>", "Michael Lohr <michael@lohr.dev>", "Quang Luong <quang@cloudflare.com>", "Sebastian Thiel <byronimo@gmail.com>"]
 description = "File locking via POSIX advisory record locks"
 license     = "MIT"
 edition     = "2021"

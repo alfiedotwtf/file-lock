@@ -56,6 +56,8 @@ Corey Richardson
 
 Jacob Turner
 
+Mateusz Kondej
+
 Michael Lohr
 
 Quang Luong
